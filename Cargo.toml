@@ -1,0 +1,14 @@
+[package]
+name = "protostar"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.66"
+glam = { version = "0.22.0", features = ["mint"] }
+manifest-dir-macros = "0.1.16"
+mint = "0.5.9"
+rustc-hash = "1.1.0"
+stardust-xr-molecules = "0.5.2"
+tokio = { version = "1.22.0", features = ["full"] }
+tween = "1.0.1"
