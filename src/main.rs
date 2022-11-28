@@ -11,15 +11,14 @@ async fn main() {
 	client.set_base_prefixes(&[directory_relative_path!("res")]);
 
 	let _root = client.wrap_root(ProtoStar::new(
-		&client,
+		client.clone(),
 		PathBuf::from_str(&args().nth(2).unwrap()).unwrap(),
 		0.1,
 		PathBuf::from_str(&args().nth(1).unwrap()).unwrap(),
 	));
 
 	tokio::select! {
-		_ = tokio::signal::ctrl_c() => Ok(()),
-		_ = event_loop => Err(anyhow::anyhow!("Server crashed")),
+		_ = tokio::signal::ctrl_c() => (),
+		e = event_loop => e.unwrap().unwrap(),
 	}
-	.unwrap();
 }
