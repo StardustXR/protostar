@@ -1,3 +1,4 @@
+mod desktop_file;
 mod protostar;
 
 use manifest_dir_macros::directory_relative_path;
