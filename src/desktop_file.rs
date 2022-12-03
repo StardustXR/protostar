@@ -5,18 +5,15 @@ use std::str::FromStr;
 use std::{env, fs};
 
 use anyhow::Result;
-use image::GenericImageView;
 use resvg::render;
-use resvg::tiny_skia::{Pixmap, PixmapMut, Transform};
+use resvg::tiny_skia::{Pixmap, Transform};
 use resvg::usvg::{FitTo, Tree};
 use walkdir::WalkDir;
 
 fn get_desktop_files() -> Vec<PathBuf> {
 	// Get the XDG data directories
-	let xdg_data_dirs = match std::env::var("XDG_DATA_DIRS") {
-		Ok(val) => val,
-		Err(_) => "/usr/local/share:/usr/share".to_string(),
-	};
+	let xdg_data_dirs =
+		std::env::var("XDG_DATA_DIRS").unwrap_or("/usr/local/share:/usr/share".to_string());
 
 	// Append the applications directory to each data directory
 	let app_dirs = xdg_data_dirs
@@ -120,11 +117,9 @@ fn test_parse_desktop_file() {
 	fs::write(&file, data).unwrap();
 
 	// Parse the test desktop file
-	let result = parse_desktop_file(&file);
-	assert!(result.is_ok());
+	let desktop_file = parse_desktop_file(&file).unwrap();
 
 	// Check the parsed values
-	let desktop_file = result.unwrap();
 	assert_eq!(desktop_file.name, Some("Test".to_string()));
 	assert_eq!(desktop_file.command, Some("test".to_string()));
 	assert_eq!(
@@ -171,6 +166,7 @@ fn render_svg_to_png(svg_path: &PathBuf, png_path: &PathBuf, size: u32) -> Resul
 }
 #[test]
 fn test_render_svg_to_png() {
+	use image::GenericImageView;
 	// Create temporary input and output paths
 	let input_path = PathBuf::from("test_input.svg");
 	let output_path = PathBuf::from("test_output.png");

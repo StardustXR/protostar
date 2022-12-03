@@ -261,7 +261,7 @@ dependencies = [
  "autocfg",
  "cfg-if",
  "crossbeam-utils",
- "memoffset 0.7.1",
+ "memoffset",
  "scopeguard",
 ]
 
@@ -503,15 +503,6 @@ dependencies = [
 
 [[package]]
 name = "glam"
-version = "0.21.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "518faa5064866338b013ff9b2350dc318e14cc4fcd6cb8206d7e7c9886c98815"
-dependencies = [
- "mint",
-]
-
-[[package]]
-name = "glam"
 version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "12f597d56c1bd55a811a1be189459e8fad2bbc272616375602443bdfb37fa774"
@@ -703,15 +694,6 @@ dependencies = [
 
 [[package]]
 name = "memoffset"
-version = "0.6.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5aa361d4faea93603064a027415f07bd8e1d5c88c9fbf68bf56a285428fd79ce"
-dependencies = [
- "autocfg",
-]
-
-[[package]]
-name = "memoffset"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5de893c32cde5f383baa4c04c5d6dbdd735cfd4a794b0debdb2bb1b421da5ff4"
@@ -778,16 +760,16 @@ dependencies = [
 
 [[package]]
 name = "nix"
-version = "0.25.0"
+version = "0.26.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e322c04a9e3440c327fca7b6c8a63e6890a32fa2ad689db972425f07e0d22abb"
+checksum = "46a58d1d356c6597d08cde02c2f09d785b09e28711837b1ed667dc652c08a694"
 dependencies = [
- "autocfg",
  "bitflags",
  "cfg-if",
  "libc",
- "memoffset 0.6.5",
+ "memoffset",
  "pin-utils",
+ "static_assertions",
 ]
 
 [[package]]
@@ -1035,7 +1017,7 @@ dependencies = [
  "anyhow",
  "dirs",
  "ez-pixmap",
- "glam 0.22.0",
+ "glam",
  "image",
  "manifest-dir-macros",
  "mint",
@@ -1048,7 +1030,6 @@ dependencies = [
  "tween",
  "ustr",
  "walkdir",
- "xpm",
 ]
 
 [[package]]
@@ -1369,16 +1350,13 @@ dependencies = [
 
 [[package]]
 name = "stardust-xr"
-version = "0.7.1"
+version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23c98b32604a8dc54010b737fb2f176523bc1a9d585eef5bb4a3c9f409f9012d"
+checksum = "751ea9078f39d03844a1cc967577ef0f2aab6818d4ce3f26861730f22e0d59f4"
 dependencies = [
- "anyhow",
  "chrono",
  "cluFlock",
  "color-rs",
- "flatbuffers",
- "flexbuffers",
  "mint",
  "parking_lot 0.12.1",
  "rustc-hash",
@@ -1386,21 +1364,21 @@ dependencies = [
  "stardust-xr-schemas",
  "thiserror",
  "tokio",
+ "tracing",
  "xdg",
 ]
 
 [[package]]
 name = "stardust-xr-fusion"
-version = "0.23.1"
+version = "0.25.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "357475624cc78941af592c755fd51a7f6b85b3323df10542c53993030fbea5a8"
+checksum = "4c8dd13d2326da48be4d30cf682bbe2f3c2eafcf74cc7d95e357928554b4e1c2"
 dependencies = [
  "anyhow",
  "buildstructor",
  "color-rs",
  "flagset",
- "flexbuffers",
- "glam 0.22.0",
+ "glam",
  "mint",
  "nanoid",
  "parking_lot 0.12.1",
@@ -1410,18 +1388,19 @@ dependencies = [
  "stardust-xr",
  "thiserror",
  "tokio",
+ "tracing",
  "xkbcommon",
 ]
 
 [[package]]
 name = "stardust-xr-molecules"
-version = "0.5.4"
+version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e04616f27e92c2d40595c0fbe4f96e5788adca3a855611794c6f202bf2c0ddd0"
+checksum = "b3ac6c61970207deb30ec077d96a1cd0a3ab5336d918c94f6f0c83a74ce0bfb6"
 dependencies = [
  "color-rs",
  "flexbuffers",
- "glam 0.22.0",
+ "glam",
  "lazy_static",
  "mint",
  "rustc-hash",
@@ -1433,19 +1412,24 @@ dependencies = [
 
 [[package]]
 name = "stardust-xr-schemas"
-version = "1.1.3"
+version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f792ac8844e1d58a17ccb158f2acbe0df2f789a1838ca77f5ccc6fba234535e0"
+checksum = "9a60a7c0c8ace5604f1b010edc3507c95b7517c3c5957c44eaad4f4fa26e9617"
 dependencies = [
- "anyhow",
  "flatbuffers",
  "flexbuffers",
- "glam 0.21.3",
+ "glam",
  "mint",
  "ouroboros",
  "serde",
  "thiserror",
 ]
+
+[[package]]
+name = "static_assertions"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "str_inflector"
@@ -1629,6 +1613,38 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8d82e1a7758622a465f8cee077614c73484dac5b836c02ff6a40d5d1010324d7"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "tracing"
+version = "0.1.37"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8ce8c33a8d48bd45d624a6e523445fd21ec13d3653cd51f681abf67418f54eb8"
+dependencies = [
+ "cfg-if",
+ "pin-project-lite",
+ "tracing-attributes",
+ "tracing-core",
+]
+
+[[package]]
+name = "tracing-attributes"
+version = "0.1.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4017f8f45139870ca7e672686113917c71c7a6e02d4924eda67186083c03081a"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "tracing-core"
+version = "0.1.30"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "24eb03ba0eab1fd845050058ce5e616558e8f8d8fca633e6b163fe25c797213a"
+dependencies = [
+ "once_cell",
 ]
 
 [[package]]
@@ -1950,9 +1966,3 @@ name = "xmlparser"
 version = "0.13.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4d25c75bf9ea12c4040a97f829154768bbbce366287e2dc044af160cd79a13fd"
-
-[[package]]
-name = "xpm"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "03e3b32dce137f44f1da822ff82ec509f64028db6edd79b18ecd3d07b2bfe73c"

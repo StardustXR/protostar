@@ -55,7 +55,16 @@ impl ProtoStar {
 impl LifeCycleHandler for ProtoStar {
 	fn logic_step(&mut self, info: LogicStepInfo) {
 		self.grabbable.update();
-		if self.grabbable.grab_action().actor_stopped() {
+
+		if let Some(icon_shrink) = &mut self.icon_shrink {
+			if let Some(scale) = icon_shrink.update(info.delta) {
+				self.icon
+					.set_scale(None, Vector3::from([scale; 3]))
+					.unwrap();
+			} else {
+				self.client.stop_loop();
+			}
+		} else if self.grabbable.grab_action().actor_stopped() {
 			let startup_settings =
 				StartupSettings::create(&self.field.spatial.client().unwrap()).unwrap();
 			self.grabbable
@@ -81,15 +90,6 @@ impl LifeCycleHandler for ProtoStar {
 					execv::<CString>(executable.as_cstr(), &[]).unwrap();
 				}
 			});
-		}
-		if let Some(icon_shrink) = &mut self.icon_shrink {
-			if let Some(scale) = icon_shrink.update(info.delta) {
-				self.icon
-					.set_scale(None, Vector3::from([scale; 3]))
-					.unwrap();
-			} else {
-				self.client.stop_loop();
-			}
 		}
 	}
 }
