@@ -31,7 +31,7 @@ impl ProtoStar {
 			.radius(size * 0.5)
 			.build()
 			.unwrap();
-		let grabbable = Grabbable::new(client.get_root(), &field).unwrap();
+		let grabbable = Grabbable::new(client.get_root(), &field, 0.05).unwrap();
 		field
 			.set_spatial_parent(grabbable.content_parent())
 			.unwrap();
@@ -67,15 +67,15 @@ impl LifeCycleHandler for ProtoStar {
 		} else if self.grabbable.grab_action().actor_stopped() {
 			let startup_settings =
 				StartupSettings::create(&self.field.spatial.client().unwrap()).unwrap();
+			self.icon
+				.set_spatial_parent_in_place(self.client.get_root())
+				.unwrap();
 			self.grabbable
 				.content_parent()
 				.set_rotation(
 					Some(&self.field.client().unwrap().get_root()),
 					Quat::IDENTITY,
 				)
-				.unwrap();
-			self.icon
-				.set_spatial_parent_in_place(self.client.get_root())
 				.unwrap();
 			startup_settings
 				.set_root(self.grabbable.content_parent())
@@ -84,7 +84,7 @@ impl LifeCycleHandler for ProtoStar {
 			let future = startup_settings.generate_desktop_startup_id().unwrap();
 			let executable = self.executable_path.clone();
 			tokio::task::spawn(async move {
-				std::env::set_var("DESKTOP_STARTUP_ID", future.await.unwrap());
+				std::env::set_var("STARDUST_STARTUP_TOKEN", future.await.unwrap());
 				if unsafe { fork() }.unwrap().is_parent() {
 					let executable = ustr(executable.to_str().unwrap());
 					execv::<CString>(executable.as_cstr(), &[]).unwrap();
