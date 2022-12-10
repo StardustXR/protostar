@@ -152,7 +152,7 @@ impl IconType {
 fn render_svg_to_png(svg_path: &PathBuf, png_path: &PathBuf, size: u32) -> Result<()> {
 	let tree = Tree::from_data(
 		fs::read(svg_path)?.as_slice(),
-		&resvg::usvg::Options::default().to_ref(),
+		&resvg::usvg::Options::default(),
 	)?;
 	let mut pixmap = Pixmap::new(size, size).unwrap();
 	render(

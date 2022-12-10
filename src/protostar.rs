@@ -81,7 +81,7 @@ impl LifeCycleHandler for ProtoStar {
 				.set_root(self.grabbable.content_parent())
 				.unwrap();
 			self.icon_shrink = Some(Tweener::new(QuartInOut::new(self.size..=0.0, 0.25)));
-			let future = startup_settings.generate_desktop_startup_id().unwrap();
+			let future = startup_settings.generate_startup_token().unwrap();
 			let executable = self.executable_path.clone();
 			tokio::task::spawn(async move {
 				std::env::set_var("STARDUST_STARTUP_TOKEN", future.await.unwrap());
