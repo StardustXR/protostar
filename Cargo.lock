@@ -1012,7 +1012,7 @@ dependencies = [
 
 [[package]]
 name = "protostar"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "dirs",
@@ -1350,13 +1350,14 @@ dependencies = [
 
 [[package]]
 name = "stardust-xr"
-version = "0.8.2"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "751ea9078f39d03844a1cc967577ef0f2aab6818d4ce3f26861730f22e0d59f4"
+checksum = "80780cd08fefcb6a67da0a92672fdd90f92873311940b5ca1c88b5132eaa70f7"
 dependencies = [
  "chrono",
  "cluFlock",
  "color-rs",
+ "dirs",
  "mint",
  "parking_lot 0.12.1",
  "rustc-hash",
@@ -1365,14 +1366,13 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
- "xdg",
 ]
 
 [[package]]
 name = "stardust-xr-fusion"
-version = "0.26.0"
+version = "0.28.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c772d18b62dbb7c39ccb10640df7aa5f46205fbe42691398b007a85925f9b43f"
+checksum = "009583e25bc59823abd97460f5823f4d91eb9b863665d61e3acaa91d404f02d3"
 dependencies = [
  "anyhow",
  "buildstructor",
@@ -1394,9 +1394,9 @@ dependencies = [
 
 [[package]]
 name = "stardust-xr-molecules"
-version = "0.8.0"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b04c8d70abfa2f120bb6b1ec92563e8e856b32a725422f4b28cb4c76a956abc7"
+checksum = "39e22bf433fca1ff7794fd9e5d29c0cf43d8b76f78205ed814450a0d644222ca"
 dependencies = [
  "color-rs",
  "flexbuffers",
@@ -1412,9 +1412,9 @@ dependencies = [
 
 [[package]]
 name = "stardust-xr-schemas"
-version = "1.2.0"
+version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a60a7c0c8ace5604f1b010edc3507c95b7517c3c5957c44eaad4f4fa26e9617"
+checksum = "12b2b760187d18535aadf608d6221506b1364a4fff14653f31c51a2fd6696fd9"
 dependencies = [
  "flatbuffers",
  "flexbuffers",
@@ -1952,15 +1952,6 @@ name = "windows_x86_64_msvc"
 version = "0.42.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f40009d85759725a34da6d89a94e63d7bdc50a862acf0dbc7c8e488f1edcb6f5"
-
-[[package]]
-name = "xdg"
-version = "2.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c4583db5cbd4c4c0303df2d15af80f0539db703fa1c68802d4cbbd2dd0f88f6"
-dependencies = [
- "dirs",
-]
 
 [[package]]
 name = "xkbcommon"

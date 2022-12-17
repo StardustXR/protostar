@@ -4,12 +4,13 @@ use nix::unistd::{execv, fork};
 use stardust_xr_molecules::{
 	fusion::{
 		client::{Client, LifeCycleHandler, LogicStepInfo},
+		core::values::Transform,
 		drawable::Model,
 		fields::SphereField,
 		node::NodeType,
 		startup_settings::StartupSettings,
 	},
-	Grabbable,
+	GrabData, Grabbable,
 };
 use std::{ffi::CString, path::PathBuf, sync::Arc};
 use tween::{QuartInOut, Tweener};
@@ -26,21 +27,27 @@ pub struct ProtoStar {
 }
 impl ProtoStar {
 	pub fn new(client: Arc<Client>, icon: PathBuf, size: f32, executable_path: PathBuf) -> Self {
-		let field = SphereField::builder()
-			.spatial_parent(client.get_root())
-			.radius(size * 0.5)
-			.build()
-			.unwrap();
-		let grabbable = Grabbable::new(client.get_root(), &field, 0.05).unwrap();
+		let field =
+			SphereField::create(client.get_root(), Vector3::from([0.0; 3]), size * 0.5).unwrap();
+		let grabbable = Grabbable::new(
+			client.get_root(),
+			Transform::default(),
+			&field,
+			GrabData { max_distance: 0.05 },
+		)
+		.unwrap();
 		field
 			.set_spatial_parent(grabbable.content_parent())
 			.unwrap();
-		let icon = Model::builder()
-			.spatial_parent(grabbable.content_parent())
-			.resource(&icon)
-			.scale(Vector3::from([size; 3]))
-			.build()
-			.unwrap();
+		let icon = Model::create(
+			grabbable.content_parent(),
+			Transform {
+				scale: Vector3::from([size; 3]),
+				..Default::default()
+			},
+			&icon,
+		)
+		.unwrap();
 		ProtoStar {
 			client,
 			grabbable,
@@ -65,8 +72,7 @@ impl LifeCycleHandler for ProtoStar {
 				self.client.stop_loop();
 			}
 		} else if self.grabbable.grab_action().actor_stopped() {
-			let startup_settings =
-				StartupSettings::create(&self.field.spatial.client().unwrap()).unwrap();
+			let startup_settings = StartupSettings::create(&self.field.client().unwrap()).unwrap();
 			self.icon
 				.set_spatial_parent_in_place(self.client.get_root())
 				.unwrap();
