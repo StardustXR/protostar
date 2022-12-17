@@ -41,10 +41,7 @@ impl ProtoStar {
 			.unwrap();
 		let icon = Model::create(
 			grabbable.content_parent(),
-			Transform {
-				scale: Vector3::from([size; 3]),
-				..Default::default()
-			},
+			Transform::from_scale([size; 3]),
 			&icon,
 		)
 		.unwrap();
