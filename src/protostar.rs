@@ -13,7 +13,7 @@ use stardust_xr_molecules::{
 	},
 	GrabData, Grabbable,
 };
-use std::{ffi::CString, path::PathBuf, sync::Arc};
+use std::{env::args, ffi::CString, path::PathBuf, sync::Arc};
 use tween::{QuartInOut, Tweener};
 use ustr::ustr;
 
@@ -91,7 +91,12 @@ impl LifeCycleHandler for ProtoStar {
 				std::env::set_var("STARDUST_STARTUP_TOKEN", future.await.unwrap());
 				if unsafe { fork() }.unwrap().is_parent() {
 					let executable = ustr(executable.to_str().unwrap());
-					execv::<CString>(executable.as_cstr(), &[]).unwrap();
+					let args = args()
+						.skip(1)
+						.map(|arg| CString::new(arg))
+						.collect::<Result<Vec<_>, _>>()
+						.unwrap();
+					execv::<CString>(executable.as_cstr(), args.as_slice()).unwrap();
 				}
 			});
 		}

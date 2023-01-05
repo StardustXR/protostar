@@ -6,8 +6,7 @@ use protostar::ProtoStar;
 use stardust_xr_molecules::fusion::client::Client;
 use std::{
 	env::{args, current_dir},
-	path::{Path, PathBuf},
-	str::FromStr,
+	path::Path,
 };
 
 #[tokio::main(flavor = "current_thread")]
