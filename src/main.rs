@@ -4,7 +4,11 @@ mod protostar;
 use manifest_dir_macros::directory_relative_path;
 use protostar::ProtoStar;
 use stardust_xr_molecules::fusion::client::Client;
-use std::{env::args, path::PathBuf, str::FromStr};
+use std::{
+	env::{args, current_dir},
+	path::{Path, PathBuf},
+	str::FromStr,
+};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
@@ -13,9 +17,10 @@ async fn main() {
 
 	let _root = client.wrap_root(ProtoStar::new(
 		client.clone(),
-		PathBuf::from_str(&args().nth(2).unwrap()).unwrap(),
 		0.1,
-		PathBuf::from_str(&args().nth(1).unwrap()).unwrap(),
+		current_dir()
+			.unwrap()
+			.join(Path::new(&args().nth(1).unwrap())),
 	));
 
 	tokio::select! {

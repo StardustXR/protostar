@@ -8,6 +8,7 @@ use stardust_xr_molecules::{
 		drawable::Model,
 		fields::SphereField,
 		node::NodeType,
+		resource::NamespacedResource,
 		startup_settings::StartupSettings,
 	},
 	GrabData, Grabbable,
@@ -26,7 +27,7 @@ pub struct ProtoStar {
 	executable_path: PathBuf,
 }
 impl ProtoStar {
-	pub fn new(client: Arc<Client>, icon: PathBuf, size: f32, executable_path: PathBuf) -> Self {
+	pub fn new(client: Arc<Client>, size: f32, executable_path: PathBuf) -> Self {
 		let field =
 			SphereField::create(client.get_root(), Vector3::from([0.0; 3]), size * 0.5).unwrap();
 		let grabbable = Grabbable::new(
@@ -42,7 +43,7 @@ impl ProtoStar {
 		let icon = Model::create(
 			grabbable.content_parent(),
 			Transform::from_scale([size; 3]),
-			&icon,
+			&NamespacedResource::new("protostar", "default_icon"),
 		)
 		.unwrap();
 		ProtoStar {
