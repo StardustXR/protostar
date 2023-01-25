@@ -1,3 +1,5 @@
+use crate::xdg::{DesktopFile, Icon, RawIconType};
+use color_eyre::eyre::{eyre, Result};
 use glam::Quat;
 use mint::Vector3;
 use nix::unistd::{execv, fork};
@@ -5,56 +7,110 @@ use stardust_xr_molecules::{
 	fusion::{
 		client::{Client, LifeCycleHandler, LogicStepInfo},
 		core::values::Transform,
-		drawable::Model,
-		fields::SphereField,
+		drawable::{MaterialParameter, Model, ResourceID},
+		fields::BoxField,
 		node::NodeType,
-		resource::NamespacedResource,
+		spatial::Spatial,
 		startup_settings::StartupSettings,
 	},
 	GrabData, Grabbable,
 };
-use std::{env::args, ffi::CString, path::PathBuf, sync::Arc};
+use std::{f32::consts::PI, ffi::CStr, sync::Arc};
 use tween::{QuartInOut, Tweener};
 use ustr::ustr;
+
+fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
+	let model = match icon {
+		Icon::Png(path) => {
+			let model = Model::create(
+				parent,
+				Transform::from_rotation(Quat::from_rotation_y(PI)),
+				&ResourceID::new_namespaced("protostar", "cartridge"),
+			)?;
+			model.set_material_parameter(
+				0,
+				"diffuse",
+				MaterialParameter::Texture(ResourceID::Direct(path.clone())),
+			)?;
+			model
+		}
+		Icon::Gltf(path) => Model::create(
+			parent,
+			Transform::from_scale([0.05; 3]),
+			&ResourceID::new_direct(path)?,
+		)?,
+	};
+	Ok(model)
+}
 
 pub struct ProtoStar {
 	client: Arc<Client>,
 	grabbable: Grabbable,
-	field: SphereField,
+	field: BoxField,
 	icon: Model,
-	icon_shrink: Option<Tweener<QuartInOut<f32, f64>>>,
-	size: f32,
-	executable_path: PathBuf,
+	icon_shrink: Option<Tweener<f32, f64, QuartInOut>>,
+	execute_command: String,
 }
 impl ProtoStar {
-	pub fn new(client: Arc<Client>, size: f32, executable_path: PathBuf) -> Self {
-		let field =
-			SphereField::create(client.get_root(), Vector3::from([0.0; 3]), size * 0.5).unwrap();
+	pub fn create_from_desktop_file(parent: &Spatial, desktop_file: DesktopFile) -> Result<Self> {
+		// dbg!(&desktop_file);
+		let mut raw_icons = desktop_file.get_raw_icons();
+		let last_icon = raw_icons.pop();
+		let icon = raw_icons
+			.into_iter()
+			.find(|i| match i {
+				RawIconType::Png(_) => false,
+				RawIconType::Svg(_) => false,
+				RawIconType::Gltf(_) => true,
+			})
+			.or(last_icon)
+			.map(|i| dbg!(i.process(64)).ok())
+			.ok_or_else(|| eyre!("No compatible icons found"))?;
+		Self::new_raw(
+			parent,
+			icon,
+			desktop_file.command.ok_or_else(|| eyre!("No command"))?,
+		)
+	}
+	pub fn new_raw(parent: &Spatial, icon: Option<Icon>, execute_command: String) -> Result<Self> {
+		let field = BoxField::create(
+			parent,
+			Transform::default(),
+			match icon.as_ref() {
+				Some(Icon::Png(_)) => [0.05, 0.0665, 0.005],
+				_ => [0.05; 3],
+			}
+			.into(),
+		)?;
 		let grabbable = Grabbable::new(
-			client.get_root(),
+			parent,
 			Transform::default(),
 			&field,
-			GrabData { max_distance: 0.05 },
-		)
-		.unwrap();
-		field
-			.set_spatial_parent(grabbable.content_parent())
-			.unwrap();
-		let icon = Model::create(
-			grabbable.content_parent(),
-			Transform::from_scale([size; 3]),
-			&NamespacedResource::new("protostar", "default_icon"),
-		)
-		.unwrap();
-		ProtoStar {
-			client,
+			GrabData {
+				max_distance: 0.025,
+			},
+		)?;
+		field.set_spatial_parent(grabbable.content_parent())?;
+		let icon = icon
+			.map(|i| model_from_icon(grabbable.content_parent(), &i))
+			.unwrap_or_else(|| {
+				Ok(Model::create(
+					grabbable.content_parent(),
+					Transform::from_scale([0.05; 3]),
+					&ResourceID::new_namespaced("protostar", "default_icon"),
+				)?)
+			})?;
+		Ok(ProtoStar {
+			client: parent.client()?,
 			grabbable,
 			field,
 			icon,
 			icon_shrink: None,
-			size,
-			executable_path,
-		}
+			execute_command,
+		})
+	}
+	pub fn content_parent(&self) -> &Spatial {
+		self.grabbable.content_parent()
 	}
 }
 impl LifeCycleHandler for ProtoStar {
@@ -62,7 +118,8 @@ impl LifeCycleHandler for ProtoStar {
 		self.grabbable.update();
 
 		if let Some(icon_shrink) = &mut self.icon_shrink {
-			if let Some(scale) = icon_shrink.update(info.delta) {
+			if !icon_shrink.is_finished() {
+				let scale = icon_shrink.move_by(info.delta);
 				self.icon
 					.set_scale(None, Vector3::from([scale; 3]))
 					.unwrap();
@@ -84,19 +141,21 @@ impl LifeCycleHandler for ProtoStar {
 			startup_settings
 				.set_root(self.grabbable.content_parent())
 				.unwrap();
-			self.icon_shrink = Some(Tweener::new(QuartInOut::new(self.size..=0.0, 0.25)));
+			self.icon_shrink = Some(Tweener::quart_in_out(1.0, 0.0, 0.25));
 			let future = startup_settings.generate_startup_token().unwrap();
-			let executable = self.executable_path.clone();
+			let executable = dbg!(self.execute_command.clone());
 			tokio::task::spawn(async move {
 				std::env::set_var("STARDUST_STARTUP_TOKEN", future.await.unwrap());
 				if unsafe { fork() }.unwrap().is_parent() {
-					let executable = ustr(executable.to_str().unwrap());
-					let args = args()
-						.skip(1)
-						.map(|arg| CString::new(arg))
-						.collect::<Result<Vec<_>, _>>()
-						.unwrap();
-					execv::<CString>(executable.as_cstr(), args.as_slice()).unwrap();
+					execv::<&CStr>(
+						ustr("/bin/sh").as_cstr(),
+						&[
+							ustr("/bin/sh").as_cstr(),
+							ustr("-c").as_cstr(),
+							ustr(&executable).as_cstr(),
+						],
+					)
+					.unwrap();
 				}
 			});
 		}
