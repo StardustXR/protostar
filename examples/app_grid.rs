@@ -6,7 +6,7 @@ use protostar::{
 	xdg::{get_desktop_files, parse_desktop_file, DesktopFile},
 };
 use stardust_xr_molecules::fusion::{
-	client::{Client, LifeCycleHandler, LogicStepInfo},
+	client::{Client, FrameInfo, RootHandler},
 	spatial::Spatial,
 };
 
@@ -24,7 +24,7 @@ async fn main() -> Result<()> {
 	let (client, event_loop) = Client::connect_with_async_loop().await?;
 	client.set_base_prefixes(&[directory_relative_path!("res")]);
 
-	let _root = client.wrap_root(AppGrid::new(&client));
+	let _root = client.wrap_root(AppGrid::new(&client))?;
 
 	tokio::select! {
 		_ = tokio::signal::ctrl_c() => (),
@@ -58,10 +58,10 @@ impl AppGrid {
 		AppGrid { apps }
 	}
 }
-impl LifeCycleHandler for AppGrid {
-	fn logic_step(&mut self, info: LogicStepInfo) {
+impl RootHandler for AppGrid {
+	fn frame(&mut self, info: FrameInfo) {
 		for app in &mut self.apps {
-			app.logic_step(info);
+			app.frame(info);
 		}
 	}
 }
@@ -109,8 +109,8 @@ impl App {
 		})
 	}
 }
-impl LifeCycleHandler for App {
-	fn logic_step(&mut self, info: LogicStepInfo) {
-		self.protostar.logic_step(info);
+impl RootHandler for App {
+	fn frame(&mut self, info: FrameInfo) {
+		self.protostar.frame(info);
 	}
 }

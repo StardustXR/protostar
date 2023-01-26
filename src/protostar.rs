@@ -5,7 +5,7 @@ use mint::Vector3;
 use nix::unistd::{execv, fork};
 use stardust_xr_molecules::{
 	fusion::{
-		client::{Client, LifeCycleHandler, LogicStepInfo},
+		client::{Client, FrameInfo, RootHandler},
 		core::values::Transform,
 		drawable::{MaterialParameter, Model, ResourceID},
 		fields::BoxField,
@@ -113,8 +113,8 @@ impl ProtoStar {
 		self.grabbable.content_parent()
 	}
 }
-impl LifeCycleHandler for ProtoStar {
-	fn logic_step(&mut self, info: LogicStepInfo) {
+impl RootHandler for ProtoStar {
+	fn frame(&mut self, info: FrameInfo) {
 		self.grabbable.update();
 
 		if let Some(icon_shrink) = &mut self.icon_shrink {
@@ -147,6 +147,7 @@ impl LifeCycleHandler for ProtoStar {
 			tokio::task::spawn(async move {
 				std::env::set_var("STARDUST_STARTUP_TOKEN", future.await.unwrap());
 				if unsafe { fork() }.unwrap().is_parent() {
+					println!("Launching \"{}\"...", &executable);
 					execv::<&CStr>(
 						ustr("/bin/sh").as_cstr(),
 						&[
