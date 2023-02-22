@@ -10,8 +10,7 @@ use std::str::FromStr;
 use std::{env, fs};
 use walkdir::WalkDir;
 use sha2::{Sha224, Digest};
-
-const ICON_SIZES: &[&str] = &["64x64", "32x32", "scalable", "128x128"];
+use linicon;
 
 fn get_data_dirs() -> Vec<PathBuf> {
 	let xdg_data_dirs_str = std::env::var("XDG_DATA_DIRS")
@@ -108,7 +107,7 @@ pub fn parse_desktop_file(path: PathBuf) -> Result<DesktopFile, String> {
 			Some((key, value)) => (key, value),
 			None => continue,
 		};
-
+		
 		// Parse the key-value pair based on the key
 		match key {
 			"Name" => name = Some(value.to_string()),
@@ -171,46 +170,31 @@ pub struct DesktopFile {
 	pub no_display: bool,
 }
 impl DesktopFile {
-	pub fn get_raw_icons(&self) -> Vec<RawIconType> {
+	pub fn get_raw_icons(&self) -> Vec<Icon> {
 		// Get the name of the icon from the DesktopFile struct
 		let Some(icon_name) = self.icon.as_ref() else { return Vec::new(); };
 		let test_icon_path = self.path.join(Path::new(icon_name));
 		if test_icon_path.exists() {
-			return RawIconType::from_path(test_icon_path)
-				.map(|i| vec![i])
-				.unwrap_or_default();
+			if let Some(icon) = Icon::from_path(test_icon_path,128) {
+				return vec![icon]
+			}
 		}
-
-		let Ok(icon_name) = OsString::from_str(icon_name) else { return Vec::new(); };
-
-		// Get the current icon theme from the XDG_ICON_THEME environment variable, or use "hicolor" as the default theme if the variable is not defined
-		let icon_theme = env::var_os("XDG_ICON_THEME").unwrap_or("hicolor".into());
-
-		// Get the XDG_DATA_HOME and XDG_DATA_DIRS environment variables, and split the XDG_DATA_DIRS variable into a list of directories
-		let xdg_data_dirs = get_data_dirs();
-
-		// Concatenate the XDG_DATA_HOME and XDG_DATA_DIRS directories with the default path for icon themes
-		xdg_data_dirs // XDG_DATA_DIRS directories
-			.into_iter()
-			.flat_map(|dir| {
-				let icons_path = dir.join("icons").join(&icon_theme);
-				ICON_SIZES
-					.iter()
-					.map(|path| icons_path.join(path).join("apps"))
-					.collect::<Vec<_>>()
-			})
-			.filter_map(|dir| {
-				let dir = fs::read_dir(dir).ok()?;
-				Some(
-					dir.filter_map(|e| e.ok())
-						.map(|file| file.path())
-						.filter(|file| file.file_stem() == Some(&icon_name)),
-				)
-			})
-			.flatten()
-			.filter_map(RawIconType::from_path)
-			.collect()
+		
+		let mut icons_iter= linicon::lookup_icon(icon_name);
+		
+		let sized_png : Vec<Icon> = icons_iter
+			.filter_map(|i| i.ok())
+			.filter(|i| i.icon_type != linicon::IconType::XMP) //TODO: support XMP
+			.map(|i| Icon::from_path(i.path,i.max_size - 2 ).unwrap())
+			.collect();
+		sized_png
 	}
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct Icon {
+	pub icon_type: RawIconType,
+	pub size: u16,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -219,23 +203,21 @@ pub enum RawIconType {
 	Svg(PathBuf),
 	Gltf(PathBuf),
 }
-impl RawIconType {
-	pub fn from_path(path: PathBuf) -> Option<RawIconType> {
-		match path.extension().and_then(|ext| ext.to_str()) {
+impl Icon {
+	pub fn from_path(path: PathBuf, size: u16) -> Option<Icon>{
+		let icon_type = match path.extension().and_then(|ext| ext.to_str()) {
 			Some("png") => Some(RawIconType::Png(path)),
 			Some("svg") => Some(RawIconType::Svg(path)),
 			Some("glb") | Some("gltf") => Some(RawIconType::Gltf(path)),
-			_ => None,
-		}
+			_ => {return None},
+		}.unwrap();
+		return Some(Icon{icon_type,size})		
 	}
 
-	pub fn process(self, size: u32) -> Result<Icon, std::io::Error> {
-		match self {
-			RawIconType::Png(path) => Ok(Icon::Png(path)),
-			RawIconType::Svg(path) => {
-				Ok(Icon::Png(get_png_from_svg(&path, size)?))
-			}
-			RawIconType::Gltf(path) => Ok(Icon::Gltf(path)),
+	pub fn process(self, size: u16) -> Result<Icon, std::io::Error> {
+		match self.icon_type {
+			RawIconType::Svg(path) => Ok(Icon::from_path(get_png_from_svg(&path, size)?,size).unwrap()),
+			_ => Ok(self),
 		}
 	}
 }
@@ -257,18 +239,10 @@ fn test_get_icon_path() {
 	dbg!(&icon_paths);
 
 	// Assert that the get_icon_path() function returns the expected result
-	assert!(icon_paths.contains(&RawIconType::Png(PathBuf::from(
-		"/usr/share/icons/hicolor/32x32/apps/krita.png"
-	))));
+	assert!(icon_paths.contains(&Icon::from_path(PathBuf::from("/usr/share/icons/hicolor/32x32/apps/krita.png"),32).unwrap()));
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum Icon {
-	Png(PathBuf),
-	Gltf(PathBuf),
-}
-
-pub fn get_png_from_svg(svg_path: impl AsRef<Path>, size: u32,) -> Result<PathBuf, std::io::Error> {
+pub fn get_png_from_svg(svg_path: impl AsRef<Path>, size: u16,) -> Result<PathBuf, std::io::Error> {
 	let svg_path = fs::canonicalize(svg_path)?;
 	let tree = Tree::from_data(
 		fs::read(svg_path.as_path())?.as_slice(),
@@ -303,10 +277,10 @@ pub fn get_png_from_svg(svg_path: impl AsRef<Path>, size: u32,) -> Result<PathBu
 		return Ok(png_path)
 	}
 
-	let mut pixmap = Pixmap::new(size, size).unwrap();
+	let mut pixmap = Pixmap::new(size.into(), size.into()).unwrap();
 	render(
 		&tree,
-		FitTo::Width(size),
+		FitTo::Width(size.into()),
 		Transform::identity(),
 		pixmap.as_mut(),
 	);
