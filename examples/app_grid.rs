@@ -41,6 +41,7 @@ impl AppGrid {
 		let apps = get_desktop_files()
 			.into_iter()
 			.filter_map(|d| parse_desktop_file(d).ok())
+			.filter(|d| !d.no_display)
 			.enumerate()
 			.filter(|(i, _)| *i <= APP_LIMIT)
 			.filter_map(|(i, a)| {
