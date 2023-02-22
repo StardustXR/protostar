@@ -1,4 +1,5 @@
 use color_eyre::eyre::Result;
+use glam::Quat;
 use manifest_dir_macros::directory_relative_path;
 use mint::Vector3;
 use protostar::{
@@ -7,10 +8,10 @@ use protostar::{
 };
 use stardust_xr_molecules::fusion::{
 	client::{Client, FrameInfo, RootHandler},
-	spatial::Spatial,
+	spatial::Spatial, drawable::{Text, TextStyle, Bounds, TextFit, Alignment}, core::values::Transform,
 };
 
-const APP_LIMIT: usize = 50;
+const APP_LIMIT: usize = 100;
 const APP_SIZE: f32 = 0.05;
 const GRID_PADDING: f32 = 0.01;
 
@@ -35,8 +36,10 @@ async fn main() -> Result<()> {
 
 struct AppGrid {
 	apps: Vec<App>,
+	//style: TextStyle,
 }
 impl AppGrid {
+
 	fn new(client: &Client) -> Self {
 		let apps = get_desktop_files()
 			.into_iter()
@@ -53,6 +56,7 @@ impl AppGrid {
 						0.0,
 					],
 					a,
+					//style,
 				)
 			})
 			.collect::<Vec<_>>();
@@ -67,44 +71,46 @@ impl RootHandler for AppGrid {
 	}
 }
 struct App {
-	// _text: Text,
+	_text: Text,
 	_desktop_file: DesktopFile,
 	protostar: ProtoStar,
 }
+
 impl App {
 	fn new(
 		parent: &Spatial,
 		position: impl Into<Vector3<f32>>,
 		desktop_file: DesktopFile,
+		//style: TextStyle,
 	) -> Option<Self> {
 		let position = position.into();
-
+		let style = TextStyle {
+			character_height: APP_SIZE * 0.1,
+			bounds: Some(Bounds {
+				bounds: [APP_SIZE; 2].into(),
+				fit: TextFit::Wrap,
+				bounds_align: Alignment::XCenter | Alignment::YCenter,
+			}),
+			text_align: Alignment::XCenter | Alignment::YCenter,
+			..Default::default()
+		};
 		let protostar = ProtoStar::create_from_desktop_file(parent, desktop_file.clone()).ok()?;
-		// let text = Text::create(
-		// 	protostar.content_parent(),
-		// 	Transform::from_position_rotation(
-		// 		[0.0, 0.0, APP_SIZE / 2.0],
-		// 		Quat::from_rotation_y(PI),
-		// 	),
-		// 	desktop_file.name.as_deref().unwrap_or("Unknown"),
-		// 	TextStyle {
-		// 		character_height: APP_SIZE * 0.1,
-		// 		bounds: Some(Bounds {
-		// 			bounds: [APP_SIZE; 2].into(),
-		// 			fit: TextFit::Wrap,
-		// 			bounds_align: Alignment::XCenter | Alignment::YCenter,
-		// 		}),
-		// 		text_align: Alignment::XCenter | Alignment::YCenter,
-		// 		..Default::default()
-		// 	},
-		// )
-		// .unwrap();
+		let text = Text::create(
+		 	protostar.content_parent(),
+		 	Transform::from_position_rotation(
+		 		[0.0, 0.0, APP_SIZE / 2.0],
+		 		Quat::from_rotation_y(3.14),
+		 	),
+		 	desktop_file.name.as_deref().unwrap_or("Unknown"),
+		 	style,
+		 )
+		 .unwrap();
 		protostar
 			.content_parent()
 			.set_position(None, position)
 			.unwrap();
 		Some(App {
-			// _text: text,
+			_text: text,
 			_desktop_file: desktop_file,
 			protostar,
 		})

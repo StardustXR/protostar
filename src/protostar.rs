@@ -1,4 +1,4 @@
-use crate::xdg::{DesktopFile, Icon, RawIconType};
+use crate::xdg::{DesktopFile, Icon, IconType};
 use color_eyre::eyre::{eyre, Result};
 use glam::Quat;
 use mint::Vector3;
@@ -21,7 +21,7 @@ use ustr::ustr;
 
 fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
 	return match &icon.icon_type {
-		RawIconType::Png(path) => {
+		IconType::Png(path) => {
 			let model = Model::create(
 				parent,
 				Transform::from_rotation(Quat::from_rotation_y(PI)),
@@ -34,7 +34,7 @@ fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
 			)?;
 			Ok(model)
 		}
-		RawIconType::Gltf(path) => Ok(Model::create(
+		IconType::Gltf(path) => Ok(Model::create(
 			parent,
 			Transform::from_scale([0.05; 3]),
 			&ResourceID::new_direct(path)?,
@@ -54,19 +54,29 @@ pub struct ProtoStar {
 impl ProtoStar {
 	pub fn create_from_desktop_file(parent: &Spatial, desktop_file: DesktopFile) -> Result<Self> {
 		// dbg!(&desktop_file);
-		dbg!(&desktop_file);
-		let mut raw_icons = dbg!(desktop_file.get_raw_icons());
-		let last_icon = raw_icons.pop();
-		let icon = raw_icons
+		let raw_icons = desktop_file.get_raw_icons();
+		let mut icon = raw_icons
+			.clone()
 			.into_iter()
 			.find(|i| match i.icon_type {
-				RawIconType::Png(_) => false,
-				RawIconType::Svg(_) => false,
-				RawIconType::Gltf(_) => true,
+				IconType::Gltf(_) => true,
+				_ => false,
 			})
-			.or(last_icon)
-			.map(|i| i.process(128).ok())
-			.ok_or_else(|| eyre!("No compatible icons found"))?;
+			.or(
+			raw_icons
+				.into_iter()
+				.max_by_key(|i| i.size)
+			);
+
+		match icon{
+			Some(i) => {
+				icon = match i.process(128) {
+					Ok(i) => Some(i),
+					_ => None,
+			}},
+			None => {},
+		}
+
 		Self::new_raw(
 			parent,
 			icon,
