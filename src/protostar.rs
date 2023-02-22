@@ -62,7 +62,7 @@ impl ProtoStar {
 				RawIconType::Gltf(_) => true,
 			})
 			.or(last_icon)
-			.map(|i| dbg!(i.process(64)).ok())
+			.map(|i| i.process(128).ok())
 			.ok_or_else(|| eyre!("No compatible icons found"))?;
 		Self::new_raw(
 			parent,
@@ -142,6 +142,7 @@ impl RootHandler for ProtoStar {
 			self.icon_shrink = Some(Tweener::quart_in_out(1.0, 0.0, 0.25));
 			let future = startup_settings.generate_startup_token().unwrap();
 			let executable = dbg!(self.execute_command.clone());
+			//TODO: split the executable string for  the args
 			tokio::task::spawn(async move {
 				std::env::set_var("STARDUST_STARTUP_TOKEN", future.await.unwrap());
 				if unsafe { fork() }.unwrap().is_parent() {
