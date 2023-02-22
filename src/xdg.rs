@@ -9,7 +9,6 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::{env, fs};
 use walkdir::WalkDir;
-use sha2::{Sha224, Digest};
 use linicon;
 
 fn get_data_dirs() -> Vec<PathBuf> {
@@ -44,7 +43,6 @@ pub fn get_desktop_files() -> Vec<PathBuf> {
 	let desktop_extension = OsString::from_str("desktop").unwrap();
 	// Get the list of directories to search
 	let app_dirs = get_app_dirs();
-	dbg!(&app_dirs);
 	app_dirs
 		.into_iter()
 		.flat_map(|dir| {
@@ -180,8 +178,13 @@ impl DesktopFile {
 			}
 		}
 		
-		let mut icons_iter= linicon::lookup_icon(icon_name);
+		let mut icons_iter= linicon::lookup_icon(icon_name).use_fallback_themes(false).peekable();
 		
+		if icons_iter.peek().is_none(){
+			//dbg!("No icons found in current theme");
+			icons_iter= linicon::lookup_icon(icon_name).peekable();
+		}
+
 		let sized_png : Vec<Icon> = icons_iter
 			.filter_map(|i| i.ok())
 			.filter(|i| i.icon_type != linicon::IconType::XMP) //TODO: support XMP
@@ -191,14 +194,14 @@ impl DesktopFile {
 	}
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Icon {
-	pub icon_type: RawIconType,
+	pub icon_type: IconType,
 	pub size: u16,
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum RawIconType {
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum IconType {
 	Png(PathBuf),
 	Svg(PathBuf),
 	Gltf(PathBuf),
@@ -206,9 +209,9 @@ pub enum RawIconType {
 impl Icon {
 	pub fn from_path(path: PathBuf, size: u16) -> Option<Icon>{
 		let icon_type = match path.extension().and_then(|ext| ext.to_str()) {
-			Some("png") => Some(RawIconType::Png(path)),
-			Some("svg") => Some(RawIconType::Svg(path)),
-			Some("glb") | Some("gltf") => Some(RawIconType::Gltf(path)),
+			Some("png") => Some(IconType::Png(path)),
+			Some("svg") => Some(IconType::Svg(path)),
+			Some("glb") | Some("gltf") => Some(IconType::Gltf(path)),
 			_ => {return None},
 		}.unwrap();
 		return Some(Icon{icon_type,size})		
@@ -216,7 +219,7 @@ impl Icon {
 
 	pub fn process(self, size: u16) -> Result<Icon, std::io::Error> {
 		match self.icon_type {
-			RawIconType::Svg(path) => Ok(Icon::from_path(get_png_from_svg(&path, size)?,size).unwrap()),
+			IconType::Svg(path) => Ok(Icon::from_path(get_png_from_svg(&path, size)?,size).unwrap()),
 			_ => Ok(self),
 		}
 	}
@@ -244,8 +247,9 @@ fn test_get_icon_path() {
 
 pub fn get_png_from_svg(svg_path: impl AsRef<Path>, size: u16,) -> Result<PathBuf, std::io::Error> {
 	let svg_path = fs::canonicalize(svg_path)?;
+	let svg_data = fs::read(svg_path.as_path())?;
 	let tree = Tree::from_data(
-		fs::read(svg_path.as_path())?.as_slice(),
+		svg_data.as_slice(),
 		&resvg::usvg::Options::default(),
 	)
 	.map_err(|_| ErrorKind::InvalidData)?;
@@ -262,16 +266,9 @@ pub fn get_png_from_svg(svg_path: impl AsRef<Path>, size: u16,) -> Result<PathBu
 	let image_cache_dir = cache_dir.join("protostar_icon_cache");
 	
 	create_dir_all(&image_cache_dir).expect("Could not create image cache directory");
-
-	//TODO: come up with a better way to cache images system
-	let mut hasher = Sha224::new();
-	let mut svg_file = fs::File::open(&svg_path)?;
-	io::copy(&mut svg_file, &mut hasher)?;
-	let hash_bytes = hasher.finalize();
 	
 	let png_path = image_cache_dir
-		.join(format!("{}-{:02x}",svg_path.with_extension("").file_name().unwrap().to_str().unwrap(), hash_bytes))
-		.with_extension("png");
+		.join(format!("{}-{}.png",svg_path.file_name().unwrap().to_str().unwrap(), svg_data.len()));
 
 	if png_path.exists() {
 		return Ok(png_path)
