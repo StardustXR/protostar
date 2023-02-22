@@ -20,8 +20,8 @@ use tween::{QuartInOut, Tweener};
 use ustr::ustr;
 
 fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
-	let model = match icon {
-		Icon::Png(path) => {
+	return match &icon.icon_type {
+		RawIconType::Png(path) => {
 			let model = Model::create(
 				parent,
 				Transform::from_rotation(Quat::from_rotation_y(PI)),
@@ -32,15 +32,15 @@ fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
 				"diffuse",
 				MaterialParameter::Texture(ResourceID::Direct(path.clone())),
 			)?;
-			model
+			Ok(model)
 		}
-		Icon::Gltf(path) => Model::create(
+		RawIconType::Gltf(path) => Ok(Model::create(
 			parent,
 			Transform::from_scale([0.05; 3]),
 			&ResourceID::new_direct(path)?,
-		)?,
+		)?),
+		_ => panic!("asd"),
 	};
-	Ok(model)
 }
 
 pub struct ProtoStar {
@@ -54,11 +54,12 @@ pub struct ProtoStar {
 impl ProtoStar {
 	pub fn create_from_desktop_file(parent: &Spatial, desktop_file: DesktopFile) -> Result<Self> {
 		// dbg!(&desktop_file);
-		let mut raw_icons = desktop_file.get_raw_icons();
+		dbg!(&desktop_file);
+		let mut raw_icons = dbg!(desktop_file.get_raw_icons());
 		let last_icon = raw_icons.pop();
 		let icon = raw_icons
 			.into_iter()
-			.find(|i| match i {
+			.find(|i| match i.icon_type {
 				RawIconType::Png(_) => false,
 				RawIconType::Svg(_) => false,
 				RawIconType::Gltf(_) => true,
@@ -77,7 +78,7 @@ impl ProtoStar {
 			parent,
 			Transform::default(),
 			match icon.as_ref() {
-				Some(Icon::Png(_)) => [0.05, 0.0665, 0.005],
+				Some(_) => [0.05, 0.0665, 0.005],
 				_ => [0.05; 3],
 			}
 			.into(),
