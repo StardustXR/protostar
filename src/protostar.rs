@@ -3,18 +3,16 @@ use color_eyre::eyre::{eyre, Result};
 use glam::Quat;
 use mint::Vector3;
 use nix::unistd::{execv, fork};
-use stardust_xr_molecules::{
-	fusion::{
-		client::{Client, FrameInfo, RootHandler},
-		core::values::Transform,
-		drawable::{MaterialParameter, Model, ResourceID},
-		fields::BoxField,
-		node::NodeType,
-		spatial::Spatial,
-		startup_settings::StartupSettings,
-	},
-	GrabData, Grabbable,
+use stardust_xr_fusion::{
+	client::{Client, FrameInfo, RootHandler},
+	core::values::Transform,
+	drawable::{MaterialParameter, Model, ResourceID},
+	fields::BoxField,
+	node::NodeType,
+	spatial::Spatial,
+	startup_settings::StartupSettings,
 };
+use stardust_xr_molecules::{GrabData, Grabbable};
 use std::{f32::consts::PI, ffi::CStr, sync::Arc};
 use tween::{QuartInOut, Tweener};
 use ustr::ustr;
@@ -79,8 +77,7 @@ impl ProtoStar {
 			match icon.as_ref() {
 				Some(Icon::Png(_)) => [0.05, 0.0665, 0.005],
 				_ => [0.05; 3],
-			}
-			.into(),
+			},
 		)?;
 		let grabbable = Grabbable::new(
 			parent,
@@ -88,6 +85,7 @@ impl ProtoStar {
 			&field,
 			GrabData {
 				max_distance: 0.025,
+				..Default::default()
 			},
 		)?;
 		field.set_spatial_parent(grabbable.content_parent())?;
@@ -115,7 +113,7 @@ impl ProtoStar {
 }
 impl RootHandler for ProtoStar {
 	fn frame(&mut self, info: FrameInfo) {
-		self.grabbable.update();
+		self.grabbable.update(&info);
 
 		if let Some(icon_shrink) = &mut self.icon_shrink {
 			if !icon_shrink.is_finished() {
