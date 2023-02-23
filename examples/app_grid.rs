@@ -11,7 +11,7 @@ use stardust_xr_fusion::{
 	spatial::Spatial, drawable::{Text, TextStyle, Bounds, TextFit, Alignment}, core::values::Transform,
 };
 
-const APP_LIMIT: usize = 100;
+const APP_LIMIT: usize = 300;
 const APP_SIZE: f32 = 0.05;
 const GRID_PADDING: f32 = 0.01;
 

@@ -3,13 +3,15 @@ use resvg::render;
 use resvg::tiny_skia::{Pixmap, Transform};
 use resvg::usvg::{FitTo, Tree};
 use std::ffi::OsString;
-use std::fs::create_dir_all;
-use std::io::{BufRead, BufReader, ErrorKind, self};
+use std::fs::{create_dir_all};
+use std::os::unix::fs::{symlink};
+use std::io::{BufRead, BufReader, ErrorKind};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::{env, fs};
 use walkdir::WalkDir;
 use linicon;
+use cached::proc_macro::cached;
 
 fn get_data_dirs() -> Vec<PathBuf> {
 	let xdg_data_dirs_str = std::env::var("XDG_DATA_DIRS")
@@ -178,6 +180,11 @@ impl DesktopFile {
 			}
 		}
 		
+		let cache_icon_path = get_image_cache_dir().join(icon_name).canonicalize();
+		if cache_icon_path.is_ok() {
+			return vec![Icon::from_path(cache_icon_path.unwrap(), 128).unwrap()]
+		}
+
 		let mut icons_iter= linicon::lookup_icon(icon_name).use_fallback_themes(false).peekable();
 		
 		if icons_iter.peek().is_none(){
@@ -197,29 +204,34 @@ impl DesktopFile {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Icon {
 	pub icon_type: IconType,
+	pub path: PathBuf,
 	pub size: u16,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum IconType {
-	Png(PathBuf),
-	Svg(PathBuf),
-	Gltf(PathBuf),
+	Png,
+	Svg,
+	Gltf,
 }
 impl Icon {
 	pub fn from_path(path: PathBuf, size: u16) -> Option<Icon>{
 		let icon_type = match path.extension().and_then(|ext| ext.to_str()) {
-			Some("png") => Some(IconType::Png(path)),
-			Some("svg") => Some(IconType::Svg(path)),
-			Some("glb") | Some("gltf") => Some(IconType::Gltf(path)),
+			Some("png") => Some(IconType::Png),
+			Some("svg") => Some(IconType::Svg),
+			Some("glb") | Some("gltf") => Some(IconType::Gltf),
 			_ => {return None},
 		}.unwrap();
-		return Some(Icon{icon_type,size})		
+		return Some(Icon{icon_type,path,size})		
 	}
 
-	pub fn process(self, size: u16) -> Result<Icon, std::io::Error> {
+	pub fn cached_process(self, size: u16) -> Result<Icon, std::io::Error> {
+		let new_path = get_image_cache_dir().join(self.path.with_extension("").file_name().unwrap());
+		if !new_path.exists(){
+			_ = symlink(self.path.clone(), new_path);
+		}
 		match self.icon_type {
-			IconType::Svg(path) => Ok(Icon::from_path(get_png_from_svg(&path, size)?,size).unwrap()),
+			IconType::Svg => Ok(Icon::from_path(get_png_from_svg(self.path, size)?,size).unwrap()),
 			_ => Ok(self),
 		}
 	}
@@ -245,6 +257,22 @@ fn test_get_icon_path() {
 	assert!(icon_paths.contains(&Icon::from_path(PathBuf::from("/usr/share/icons/hicolor/32x32/apps/krita.png"),32).unwrap()));
 }
 
+#[cached]
+pub fn get_image_cache_dir() -> PathBuf {
+	let cache_dir;
+	if let Ok(xdg_cache_home) = std::env::var("XDG_CACHE_HOME") {
+		cache_dir = PathBuf::from_str(&xdg_cache_home).unwrap_or(
+			dirs::home_dir().unwrap().join(".cache")
+		)
+	} else {
+		cache_dir = dirs::home_dir().unwrap().join(".cache");
+	}
+	let image_cache_dir = cache_dir.join("protostar_icon_cache");
+	create_dir_all(&image_cache_dir).expect("Could not create image cache directory");
+	return image_cache_dir
+}
+
+
 pub fn get_png_from_svg(svg_path: impl AsRef<Path>, size: u16,) -> Result<PathBuf, std::io::Error> {
 	let svg_path = fs::canonicalize(svg_path)?;
 	let svg_data = fs::read(svg_path.as_path())?;
@@ -254,20 +282,7 @@ pub fn get_png_from_svg(svg_path: impl AsRef<Path>, size: u16,) -> Result<PathBu
 	)
 	.map_err(|_| ErrorKind::InvalidData)?;
 	
-	let cache_dir;
-	if let Ok(xdg_cache_home) = std::env::var("XDG_CACHE_HOME") {
-		cache_dir = PathBuf::from_str(&xdg_cache_home).unwrap_or(
-			dirs::home_dir().unwrap().join(".cache")
-		)
-	} else {
-		cache_dir = dirs::home_dir().unwrap().join(".cache");
-	}
-
-	let image_cache_dir = cache_dir.join("protostar_icon_cache");
-	
-	create_dir_all(&image_cache_dir).expect("Could not create image cache directory");
-	
-	let png_path = image_cache_dir
+	let png_path = get_image_cache_dir()
 		.join(format!("{}-{}.png",svg_path.file_name().unwrap().to_str().unwrap(), svg_data.len()));
 
 	if png_path.exists() {
