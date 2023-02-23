@@ -36,7 +36,7 @@ fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
 				MaterialParameter::Color([0.0,1.0,1.0,1.0]),
 			)?;
 			model.set_material_parameter(
-				2,
+				0,
 				"diffuse",
 				MaterialParameter::Texture(ResourceID::Direct(icon.path.clone())),
 			)?;
