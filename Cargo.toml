@@ -27,7 +27,3 @@ walkdir = "2.3.2"
 
 [dev-dependencies]
 tempdir = "0.3.7"
-
-[patch.crates-io]
-stardust-xr-molecules = { path = "../../molecules" }
-stardust-xr-fusion = { path = "../../core/fusion" }
