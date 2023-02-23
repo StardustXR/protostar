@@ -20,26 +20,34 @@ use tween::{QuartInOut, Tweener};
 use ustr::ustr;
 
 fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
+	
 	return match &icon.icon_type {
-		IconType::Png(path) => {
+		IconType::Png => {
+			let t = Transform::from_rotation_scale(Quat::from_rotation_x(PI/2.0),[0.03,0.03,0.03]);
+
 			let model = Model::create(
 				parent,
-				Transform::from_rotation(Quat::from_rotation_y(PI)),
-				&ResourceID::new_namespaced("protostar", "cartridge"),
+				t,
+				&ResourceID::new_namespaced("protostar", "hexagon/hexagon"),
 			)?;
 			model.set_material_parameter(
-				0,
+				1,
+				"color",
+				MaterialParameter::Color([0.0,1.0,1.0,1.0]),
+			)?;
+			model.set_material_parameter(
+				2,
 				"diffuse",
-				MaterialParameter::Texture(ResourceID::Direct(path.clone())),
+				MaterialParameter::Texture(ResourceID::Direct(icon.path.clone())),
 			)?;
 			Ok(model)
 		}
-		IconType::Gltf(path) => Ok(Model::create(
+		IconType::Gltf => Ok(Model::create(
 			parent,
 			Transform::from_scale([0.05; 3]),
-			&ResourceID::new_direct(path)?,
+			&ResourceID::new_direct(icon.path.clone())?,
 		)?),
-		_ => panic!("asd"),
+		_ => panic!("Invalid Icon Type"),
 	};
 }
 
@@ -59,7 +67,7 @@ impl ProtoStar {
 			.clone()
 			.into_iter()
 			.find(|i| match i.icon_type {
-				IconType::Gltf(_) => true,
+				IconType::Gltf => true,
 				_ => false,
 			})
 			.or(
@@ -70,7 +78,7 @@ impl ProtoStar {
 
 		match icon{
 			Some(i) => {
-				icon = match i.process(128) {
+				icon = match i.cached_process(128) {
 					Ok(i) => Some(i),
 					_ => None,
 			}},
@@ -107,8 +115,8 @@ impl ProtoStar {
 			.unwrap_or_else(|| {
 				Ok(Model::create(
 					grabbable.content_parent(),
-					Transform::from_scale([0.05; 3]),
-					&ResourceID::new_namespaced("protostar", "default_icon"),
+					Transform::from_rotation_scale(Quat::from_rotation_x(PI/2.0),[0.03,0.03,0.03]),
+					&ResourceID::new_namespaced("protostar", "hexagon/hexagon"),
 				)?)
 			})?;
 		Ok(ProtoStar {
