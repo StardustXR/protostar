@@ -32,8 +32,8 @@ impl Hex {
 	}
 
 	fn get_coords(&self) -> [f32; 3]{
-		let x: f32 = 3.0/2.0 * APP_SIZE.to_f32()/2.0 * (-self.q-self.s).to_f32();
-        let y = 3.0_f32.sqrt() * APP_SIZE.to_f32()/2.0 * ( (-self.q-self.s).to_f32()/2.0 + self.s.to_f32());
+		let x = 3.0/2.0 * APP_SIZE/2.0 * (-self.q-self.s).to_f32();
+        let y = 3.0_f32.sqrt() * APP_SIZE/2.0 * ( (-self.q-self.s).to_f32()/2.0 + self.s.to_f32());
 		[x,y,0.0]
 	}
 
