@@ -8,7 +8,9 @@ use protostar::{
 };
 use stardust_xr_molecules::fusion::{
 	client::{Client, FrameInfo, RootHandler},
-	spatial::Spatial, drawable::{Text, TextStyle, Bounds, TextFit, Alignment}, core::values::Transform,
+	core::values::Transform,
+	drawable::{Alignment, Bounds, Text, TextFit, TextStyle},
+	spatial::Spatial,
 };
 
 const APP_LIMIT: usize = 300;
@@ -39,7 +41,6 @@ struct AppGrid {
 	//style: TextStyle,
 }
 impl AppGrid {
-
 	fn new(client: &Client) -> Self {
 		let apps = get_desktop_files()
 			.into_iter()
@@ -96,15 +97,15 @@ impl App {
 		};
 		let protostar = ProtoStar::create_from_desktop_file(parent, desktop_file.clone()).ok()?;
 		let text = Text::create(
-		 	protostar.content_parent(),
-		 	Transform::from_position_rotation(
-		 		[0.0, 0.0, APP_SIZE / 2.0],
-		 		Quat::from_rotation_y(3.14),
-		 	),
-		 	desktop_file.name.as_deref().unwrap_or("Unknown"),
-		 	style,
-		 )
-		 .unwrap();
+			protostar.content_parent(),
+			Transform::from_position_rotation(
+				[0.0, 0.0, APP_SIZE / 2.0],
+				Quat::from_rotation_y(3.14),
+			),
+			desktop_file.name.as_deref().unwrap_or("Unknown"),
+			style,
+		)
+		.unwrap();
 		protostar
 			.content_parent()
 			.set_position(None, position)

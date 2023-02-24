@@ -2,9 +2,7 @@ use crate::xdg::{DesktopFile, Icon, IconType};
 use color_eyre::eyre::{eyre, Result};
 use glam::Quat;
 use mint::Vector3;
-use fork::{daemon, Fork, setsid};
-use std::process::{Command,Stdio};
-use std::os::unix::process::CommandExt;
+use nix::unistd::setsid;
 use stardust_xr_molecules::{
 	fusion::{
 		client::{Client, FrameInfo, RootHandler},
@@ -17,16 +15,18 @@ use stardust_xr_molecules::{
 	},
 	GrabData, Grabbable,
 };
-use std::{f32::consts::PI, ffi::CStr, sync::Arc};
+use std::os::unix::process::CommandExt;
+use std::process::{Command, Stdio};
+use std::{f32::consts::PI, sync::Arc};
 use tween::{QuartInOut, Tweener};
-use ustr::ustr;
-use nix::unistd::fork;
 
 fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
-	
 	return match &icon.icon_type {
 		IconType::Png => {
-			let t = Transform::from_rotation_scale(Quat::from_rotation_x(PI/2.0)*Quat::from_rotation_y(PI),[0.03,0.03,0.03]);
+			let t = Transform::from_rotation_scale(
+				Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
+				[0.03, 0.03, 0.03],
+			);
 
 			let model = Model::create(
 				parent,
@@ -36,7 +36,7 @@ fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
 			model.set_material_parameter(
 				1,
 				"color",
-				MaterialParameter::Color([0.0,1.0,1.0,1.0]),
+				MaterialParameter::Color([0.0, 1.0, 1.0, 1.0]),
 			)?;
 			model.set_material_parameter(
 				0,
@@ -74,19 +74,16 @@ impl ProtoStar {
 				IconType::Gltf => true,
 				_ => false,
 			})
-			.or(
-			raw_icons
-				.into_iter()
-				.max_by_key(|i| i.size)
-			);
+			.or(raw_icons.into_iter().max_by_key(|i| i.size));
 
-		match icon{
+		match icon {
 			Some(i) => {
 				icon = match i.cached_process(128) {
 					Ok(i) => Some(i),
 					_ => None,
-			}},
-			None => {},
+				}
+			}
+			None => {}
 		}
 
 		Self::new_raw(
@@ -109,9 +106,7 @@ impl ProtoStar {
 			parent,
 			Transform::default(),
 			&field,
-			GrabData {
-				max_distance: 0.01,
-			},
+			GrabData { max_distance: 0.01 },
 		)?;
 		field.set_spatial_parent(grabbable.content_parent())?;
 		let icon = icon
@@ -119,7 +114,10 @@ impl ProtoStar {
 			.unwrap_or_else(|| {
 				Ok(Model::create(
 					grabbable.content_parent(),
-					Transform::from_rotation_scale(Quat::from_xyzw(0.0,0.707,0.707,0.0),[0.03,0.03,0.03]),
+					Transform::from_rotation_scale(
+						Quat::from_xyzw(0.0, 0.707, 0.707, 0.0),
+						[0.03, 0.03, 0.03],
+					),
 					&ResourceID::new_namespaced("protostar", "hexagon/hexagon"),
 				)?)
 			})?;
@@ -147,15 +145,15 @@ impl RootHandler for ProtoStar {
 				self.icon
 					.set_scale(None, Vector3::from([scale; 3]))
 					.unwrap();
-			} 
-		if let Some(icon_grow) = &mut self.icon_shrink {
-			if !icon_grow.is_finished(){
-				let scale = icon_grow.move_by(info.delta);
-				self.icon
-					.set_scale(None, Vector3::from([scale; 3]))
-					.unwrap();
 			}
-		}
+			if let Some(icon_grow) = &mut self.icon_shrink {
+				if !icon_grow.is_finished() {
+					let scale = icon_grow.move_by(info.delta);
+					self.icon
+						.set_scale(None, Vector3::from([scale; 3]))
+						.unwrap();
+				}
+			}
 		} else if self.grabbable.grab_action().actor_stopped() {
 			let startup_settings = StartupSettings::create(&self.field.client().unwrap()).unwrap();
 			self.icon
@@ -179,15 +177,15 @@ impl RootHandler for ProtoStar {
 				std::env::set_var("STARDUST_STARTUP_TOKEN", future.await.unwrap());
 				unsafe {
 					Command::new(executable)
-					.stdin(Stdio::null())
-					.stdout(Stdio::null())
-					.stderr(Stdio::null())
-					.pre_exec(|| {
-						setsid();
-						Ok(())
-					})
-					.spawn()
-					.expect("Failed to start child process")
+						.stdin(Stdio::null())
+						.stdout(Stdio::null())
+						.stderr(Stdio::null())
+						.pre_exec(|| {
+							setsid();
+							Ok(())
+						})
+						.spawn()
+						.expect("Failed to start child process")
 				}
 			});
 			self.icon_grow = Some(Tweener::quart_in_out(0.00, 0.03, 0.25)); //TODO make the scale a parameter
