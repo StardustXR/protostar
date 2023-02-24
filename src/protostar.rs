@@ -3,8 +3,7 @@ use color_eyre::eyre::{eyre, Result};
 use glam::Quat;
 use mint::Vector3;
 use nix::unistd::setsid;
-use stardust_xr_molecules::{
-	fusion::{
+use stardust_xr_fusion::{
 		client::{Client, FrameInfo, RootHandler},
 		core::values::Transform,
 		drawable::{MaterialParameter, Model, ResourceID},
@@ -12,9 +11,8 @@ use stardust_xr_molecules::{
 		node::NodeType,
 		spatial::Spatial,
 		startup_settings::StartupSettings,
-	},
-	GrabData, Grabbable,
 };
+use stardust_xr_molecules::{GrabData, Grabbable};
 use std::os::unix::process::CommandExt;
 use std::process::{Command, Stdio};
 use std::{f32::consts::PI, sync::Arc};
@@ -99,14 +97,16 @@ impl ProtoStar {
 			match icon.as_ref() {
 				Some(_) => [0.05, 0.0665, 0.005],
 				_ => [0.05; 3],
-			}
-			.into(),
+			},
 		)?;
 		let grabbable = Grabbable::new(
 			parent,
 			Transform::default(),
 			&field,
-			GrabData { max_distance: 0.01 },
+			GrabData {
+				max_distance: 0.01,
+				..Default::default()
+			},
 		)?;
 		field.set_spatial_parent(grabbable.content_parent())?;
 		let icon = icon
@@ -137,7 +137,7 @@ impl ProtoStar {
 }
 impl RootHandler for ProtoStar {
 	fn frame(&mut self, info: FrameInfo) {
-		self.grabbable.update();
+		self.grabbable.update(&info);
 
 		if let Some(icon_shrink) = &mut self.icon_shrink {
 			if !icon_shrink.is_finished() {

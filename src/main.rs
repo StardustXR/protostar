@@ -5,7 +5,7 @@ use color_eyre::{
 };
 use manifest_dir_macros::directory_relative_path;
 use protostar::{protostar::ProtoStar, xdg::parse_desktop_file};
-use stardust_xr_molecules::fusion::client::Client;
+use stardust_xr_fusion::client::Client;
 use std::path::PathBuf;
 
 #[derive(Debug, Parser)]

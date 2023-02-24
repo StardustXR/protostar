@@ -6,7 +6,7 @@ use protostar::{
 	protostar::ProtoStar,
 	xdg::{get_desktop_files, parse_desktop_file, DesktopFile},
 };
-use stardust_xr_molecules::fusion::{
+use stardust_xr_fusion::{
 	client::{Client, FrameInfo, RootHandler},
 	core::values::Transform,
 	drawable::{Alignment, Bounds, Text, TextFit, TextStyle},
