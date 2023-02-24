@@ -2,20 +2,26 @@ use crate::xdg::{DesktopFile, Icon, IconType};
 use color_eyre::eyre::{eyre, Result};
 use glam::Quat;
 use mint::Vector3;
-use nix::unistd::{execv, fork};
-use stardust_xr_fusion::{
-	client::{Client, FrameInfo, RootHandler},
-	core::values::Transform,
-	drawable::{MaterialParameter, Model, ResourceID},
-	fields::BoxField,
-	node::NodeType,
-	spatial::Spatial,
-	startup_settings::StartupSettings,
+use fork::{daemon, Fork, setsid};
+use std::process::{Command,Stdio};
+use std::os::unix::process::CommandExt;
+use stardust_xr_molecules::{
+	fusion::{
+		client::{Client, FrameInfo, RootHandler},
+		core::values::Transform,
+		drawable::{MaterialParameter, Model, ResourceID},
+		fields::BoxField,
+		node::NodeType,
+		spatial::Spatial,
+		startup_settings::StartupSettings,
+	},
+	GrabData, Grabbable,
 };
 use stardust_xr_molecules::{GrabData, Grabbable};
 use std::{f32::consts::PI, ffi::CStr, sync::Arc};
 use tween::{QuartInOut, Tweener};
 use ustr::ustr;
+use nix::unistd::fork;
 
 fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
 	
@@ -55,6 +61,7 @@ pub struct ProtoStar {
 	field: BoxField,
 	icon: Model,
 	icon_shrink: Option<Tweener<f32, f64, QuartInOut>>,
+	icon_grow: Option<Tweener<f32, f64, QuartInOut>>,
 	execute_command: String,
 }
 impl ProtoStar {
@@ -123,6 +130,7 @@ impl ProtoStar {
 			field,
 			icon,
 			icon_shrink: None,
+			icon_grow: None,
 			execute_command,
 		})
 	}
@@ -140,9 +148,15 @@ impl RootHandler for ProtoStar {
 				self.icon
 					.set_scale(None, Vector3::from([scale; 3]))
 					.unwrap();
-			} else {
-				self.client.stop_loop();
+			} 
+		if let Some(icon_grow) = &mut self.icon_shrink {
+			if !icon_grow.is_finished(){
+				let scale = icon_grow.move_by(info.delta);
+				self.icon
+					.set_scale(None, Vector3::from([scale; 3]))
+					.unwrap();
 			}
+		}
 		} else if self.grabbable.grab_action().actor_stopped() {
 			let startup_settings = StartupSettings::create(&self.field.client().unwrap()).unwrap();
 			self.icon
@@ -164,19 +178,21 @@ impl RootHandler for ProtoStar {
 			//TODO: split the executable string for  the args
 			tokio::task::spawn(async move {
 				std::env::set_var("STARDUST_STARTUP_TOKEN", future.await.unwrap());
-				if unsafe { fork() }.unwrap().is_parent() {
-					println!("Launching \"{}\"...", &executable);
-					execv::<&CStr>(
-						ustr("/bin/sh").as_cstr(),
-						&[
-							ustr("/bin/sh").as_cstr(),
-							ustr("-c").as_cstr(),
-							ustr(&executable).as_cstr(),
-						],
-					)
-					.unwrap();
+				unsafe {
+					Command::new(executable)
+					.stdin(Stdio::null())
+					.stdout(Stdio::null())
+					.stderr(Stdio::null())
+					.pre_exec(|| {
+						setsid();
+						Ok(())
+					})
+					.spawn()
+					.expect("Failed to start child process")
 				}
 			});
+			self.icon_grow = Some(Tweener::quart_in_out(0.00, 0.03, 0.25)); //TODO make the scale a parameter
+			dbg!("reached here");
 		}
 	}
 }
