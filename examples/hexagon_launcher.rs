@@ -14,34 +14,40 @@ use tween::TweenTime;
 
 const APP_SIZE: f32 = 0.065;
 #[derive(Clone)]
-struct Cube {
+struct Hex {
 	q: isize,
 	r: isize,
 	s: isize,
 }
 
-const CUBE_CENTER: Cube = Cube{q:0,r:0,s:0};
-const CUBE_DIRECTION_VECTORS: [Cube; 6] = [
-    Cube{q:1, r:0, s:-1}, Cube{q:1, r:-1, s:0}, Cube{q:0, r:-1, s:1}, 
-    Cube{q:-1, r:0, s:1}, Cube{q:-1, r:1, s:0}, Cube{q:0, r:1, s:-1}, 
+const HEX_CENTER: Hex = Hex{q:0,r:0,s:0};
+const HEX_DIRECTION_VECTORS: [Hex; 6] = [
+    Hex{q:1, r:0, s:-1}, Hex{q:1, r:-1, s:0}, Hex{q:0, r:-1, s:1}, 
+    Hex{q:-1, r:0, s:1}, Hex{q:-1, r:1, s:0}, Hex{q:0, r:1, s:-1}, 
 ];
 
-impl Cube {
+impl Hex {
+	fn new(q:isize, r:isize, s:isize) -> Self{
+		Hex{q:q, r:r, s:s}
+	}
+
 	fn get_coords(&self) -> [f32; 3]{
 		let x: f32 = 3.0/2.0 * APP_SIZE.to_f32()/2.0 * (-self.q-self.s).to_f32();
         let y = 3.0_f32.sqrt() * APP_SIZE.to_f32()/2.0 * ( (-self.q-self.s).to_f32()/2.0 + self.s.to_f32());
 		[x,y,0.0]
 	}
-}
 
-fn cube_add(hex: Cube, vec:Cube) -> Cube{
-    Cube{q:(hex.q + vec.q), r:(hex.r + vec.r), s:(hex.s + vec.s)}
-}
-fn cube_neighbor(cube: Cube, direction:usize) -> Cube{
-    cube_add(cube, CUBE_DIRECTION_VECTORS[direction].clone())
-}
-fn cube_scale(hex: Cube, factor:isize) -> Cube {
-    Cube{q:(hex.q * factor), r:(hex.r * factor), s:(hex.s * factor)}
+	fn add(self, vec:&Hex) -> Self{
+		Hex::new(self.q + vec.q, self.r + vec.r, self.s + vec.s)
+	}
+
+	fn neighbor(self, direction:usize) -> Self{
+		self.add(&HEX_DIRECTION_VECTORS[direction])
+	}
+
+	fn scale(self, factor:isize) -> Self {
+		Hex::new(self.q * factor, self.r * factor, self.s * factor)
+	}
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -75,21 +81,21 @@ impl AppHexGrid {
 			.filter(|d| !d.no_display)
 			.collect();
 
-
 		desktop_files.sort_by_key(|d| d.clone().name.unwrap());
-		dbg!(&desktop_files);
+
 		let mut apps = Vec::new();
-		let n_spirals = (1.0/6.0 * (-3.0 +(desktop_files.len().to_f32()*12.0).sqrt())).floor() as isize;
-		dbg!(n_spirals);
-		let mut iter = desktop_files.into_iter();
-        for radius in 1..n_spirals{
-			let mut hex = cube_add(CUBE_CENTER, cube_scale(CUBE_DIRECTION_VECTORS[4].clone(), radius));
+        let mut radius = 1;
+		while !desktop_files.is_empty() {
+			let mut hex = HEX_CENTER.add(&HEX_DIRECTION_VECTORS[4].clone().scale(radius));
             for i in 0..6{
-				for j in 0..radius{
-	        		apps.push(App::new(client.get_root(),hex.get_coords(),iter.next().unwrap()).unwrap());
-                    hex = cube_neighbor(hex, i)
+				if desktop_files.is_empty() {break};
+				for _ in 0..radius{
+					if desktop_files.is_empty() {break};
+	        		apps.push(App::new(client.get_root(),hex.get_coords(),desktop_files.pop().unwrap()).unwrap());
+                    hex = hex.neighbor(i);
 				}	
 			}
+			radius += 1;
     	}
 		AppHexGrid { apps }
 	}
