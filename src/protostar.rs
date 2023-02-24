@@ -3,8 +3,7 @@ use color_eyre::eyre::{eyre, Result};
 use glam::Quat;
 use mint::Vector3;
 use nix::unistd::setsid;
-use stardust_xr_molecules::{
-	fusion::{
+use stardust_xr_fusion::{
 		client::{Client, FrameInfo, RootHandler},
 		core::values::Transform,
 		drawable::{MaterialParameter, Model, ResourceID},
@@ -12,9 +11,8 @@ use stardust_xr_molecules::{
 		node::NodeType,
 		spatial::Spatial,
 		startup_settings::StartupSettings,
-	},
-	GrabData, Grabbable,
 };
+use stardust_xr_molecules::{GrabData, Grabbable};
 use std::os::unix::process::CommandExt;
 use std::process::{Command, Stdio};
 use std::{f32::consts::PI, sync::Arc};
@@ -106,7 +104,7 @@ impl ProtoStar {
 			Transform::default(),
 			&field,
 			GrabData {
-				max_distance: 0.025,
+				max_distance: 0.01,
 				..Default::default()
 			},
 		)?;
