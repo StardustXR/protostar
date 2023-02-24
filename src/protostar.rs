@@ -23,7 +23,7 @@ fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
 	
 	return match &icon.icon_type {
 		IconType::Png => {
-			let t = Transform::from_rotation_scale(Quat::from_rotation_x(PI/2.0),[0.03,0.03,0.03]);
+			let t = Transform::from_rotation_scale(Quat::from_rotation_x(PI/2.0)*Quat::from_rotation_y(PI),[0.03,0.03,0.03]);
 
 			let model = Model::create(
 				parent,
@@ -106,7 +106,7 @@ impl ProtoStar {
 			Transform::default(),
 			&field,
 			GrabData {
-				max_distance: 0.025,
+				max_distance: 0.01,
 			},
 		)?;
 		field.set_spatial_parent(grabbable.content_parent())?;
@@ -115,7 +115,7 @@ impl ProtoStar {
 			.unwrap_or_else(|| {
 				Ok(Model::create(
 					grabbable.content_parent(),
-					Transform::from_rotation_scale(Quat::from_rotation_x(PI/2.0),[0.03,0.03,0.03]),
+					Transform::from_rotation_scale(Quat::from_xyzw(0.0,0.707,0.707,0.0),[0.03,0.03,0.03]),
 					&ResourceID::new_namespaced("protostar", "hexagon/hexagon"),
 				)?)
 			})?;
@@ -160,7 +160,7 @@ impl RootHandler for ProtoStar {
 			startup_settings
 				.set_root(self.grabbable.content_parent())
 				.unwrap();
-			self.icon_shrink = Some(Tweener::quart_in_out(1.0, 0.0, 0.25));
+			self.icon_shrink = Some(Tweener::quart_in_out(0.03, 0.0, 0.25)); //TODO make the scale a parameter
 			let future = startup_settings.generate_startup_token().unwrap();
 			let executable = dbg!(self.execute_command.clone());
 			//TODO: split the executable string for  the args
