@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use color_eyre::eyre::Result;
 use glam::Quat;
 use manifest_dir_macros::directory_relative_path;
@@ -14,8 +12,37 @@ use stardust_xr_molecules::fusion::{
 };
 use tween::TweenTime;
 
-const APP_LIMIT: usize = 18;
-const APP_SIZE: f32 = 0.055;
+const APP_SIZE: f32 = 0.065;
+#[derive(Clone)]
+struct Cube {
+	q: isize,
+	r: isize,
+	s: isize,
+}
+
+const CUBE_CENTER: Cube = Cube{q:0,r:0,s:0};
+const CUBE_DIRECTION_VECTORS: [Cube; 6] = [
+    Cube{q:1, r:0, s:-1}, Cube{q:1, r:-1, s:0}, Cube{q:0, r:-1, s:1}, 
+    Cube{q:-1, r:0, s:1}, Cube{q:-1, r:1, s:0}, Cube{q:0, r:1, s:-1}, 
+];
+
+impl Cube {
+	fn get_coords(&self) -> [f32; 3]{
+		let x: f32 = 3.0/2.0 * APP_SIZE.to_f32()/2.0 * (-self.q-self.s).to_f32();
+        let y = 3.0_f32.sqrt() * APP_SIZE.to_f32()/2.0 * ( (-self.q-self.s).to_f32()/2.0 + self.s.to_f32());
+		[x,y,0.0]
+	}
+}
+
+fn cube_add(hex: Cube, vec:Cube) -> Cube{
+    Cube{q:(hex.q + vec.q), r:(hex.r + vec.r), s:(hex.s + vec.s)}
+}
+fn cube_neighbor(cube: Cube, direction:usize) -> Cube{
+    cube_add(cube, CUBE_DIRECTION_VECTORS[direction].clone())
+}
+fn cube_scale(hex: Cube, factor:isize) -> Cube {
+    Cube{q:(hex.q * factor), r:(hex.r * factor), s:(hex.s * factor)}
+}
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
@@ -49,33 +76,21 @@ impl AppHexGrid {
 			.collect();
 
 
-		let mut circles = 1;
-		let mut current_num = 6;
-		let mut target = 6;
 		desktop_files.sort_by_key(|d| d.clone().name.unwrap());
 		dbg!(&desktop_files);
-		let apps :Vec<App>= desktop_files
-			.into_iter()
-			.enumerate()
-			.filter(|(i,_)| *i < APP_LIMIT)
-			.filter_map(|(i,d)|{
-				let angle = ((3.14*2.0)/current_num.to_f32())*(i%current_num).to_f32();
-
-				let x = (target-i)%circles; // this gives 0,3,2,1 but I need 0,1,2,3
-				dbg!(x);
-				let m = circles.to_f32()*APP_SIZE - (x.to_f32()*0.5*(circles-1).to_f32()*(APP_SIZE/2.0));
-				
-				let position = [angle.sin()*m,angle.cos()*m,0.0];
-
-				if (i+1) == target {
-					circles += 1;
-					current_num += 6;
-					target = target + current_num;
-				}
-
-				return App::new(client.get_root(),position,d);
-			})
-			.collect();
+		let mut apps = Vec::new();
+		let n_spirals = (1.0/6.0 * (-3.0 +(desktop_files.len().to_f32()*12.0).sqrt())).floor() as isize;
+		dbg!(n_spirals);
+		let mut iter = desktop_files.into_iter();
+        for radius in 1..n_spirals{
+			let mut hex = cube_add(CUBE_CENTER, cube_scale(CUBE_DIRECTION_VECTORS[4].clone(), radius));
+            for i in 0..6{
+				for j in 0..radius{
+	        		apps.push(App::new(client.get_root(),hex.get_coords(),iter.next().unwrap()).unwrap());
+                    hex = cube_neighbor(hex, i)
+				}	
+			}
+    	}
 		AppHexGrid { apps }
 	}
 }
@@ -99,7 +114,7 @@ impl App {
 		desktop_file: DesktopFile,
 	) -> Option<Self> {
 		let position = position.into();
-		let style = TextStyle {
+		let style= TextStyle {
 			character_height: APP_SIZE * 0.1,
 			bounds: Some(Bounds {
 				bounds: [APP_SIZE; 2].into(),
@@ -113,7 +128,7 @@ impl App {
 		let text = Text::create(
 		 	protostar.content_parent(),
 		 	Transform::from_position_rotation(
-		 		[0.0, 0.0, APP_SIZE / 2.0],
+		 		[0.0, 0.0, 0.004],
 		 		Quat::from_rotation_y(3.14),
 		 	),
 		 	desktop_file.name.as_deref().unwrap_or("Unknown"),
