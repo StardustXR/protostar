@@ -54,6 +54,7 @@ fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
 
 pub struct ProtoStar {
 	client: Arc<Client>,
+	position: Vector3<f32>,
 	grabbable: Grabbable,
 	field: BoxField,
 	icon: Model,
@@ -62,7 +63,7 @@ pub struct ProtoStar {
 	execute_command: String,
 }
 impl ProtoStar {
-	pub fn create_from_desktop_file(parent: &Spatial, desktop_file: DesktopFile) -> Result<Self> {
+	pub fn create_from_desktop_file(parent: &Spatial, position: impl Into<Vector3<f32>>, desktop_file: DesktopFile) -> Result<Self> {
 		// dbg!(&desktop_file);
 		let raw_icons = desktop_file.get_raw_icons();
 		let mut icon = raw_icons
@@ -86,11 +87,13 @@ impl ProtoStar {
 
 		Self::new_raw(
 			parent,
+			position,
 			icon,
 			desktop_file.command.ok_or_else(|| eyre!("No command"))?,
 		)
 	}
-	pub fn new_raw(parent: &Spatial, icon: Option<Icon>, execute_command: String) -> Result<Self> {
+	pub fn new_raw(parent: &Spatial, position: impl Into<Vector3<f32>>, icon: Option<Icon>, execute_command: String) -> Result<Self> {
+		let position = position.into();
 		let field = BoxField::create(
 			parent,
 			Transform::default(),
@@ -123,6 +126,7 @@ impl ProtoStar {
 			})?;
 		Ok(ProtoStar {
 			client: parent.client()?,
+			position,
 			grabbable,
 			field,
 			icon,
@@ -138,38 +142,43 @@ impl ProtoStar {
 impl RootHandler for ProtoStar {
 	fn frame(&mut self, info: FrameInfo) {
 		self.grabbable.update(&info);
-
 		if let Some(icon_shrink) = &mut self.icon_shrink {
 			if !icon_shrink.is_finished() {
 				let scale = icon_shrink.move_by(info.delta);
 				self.icon
 					.set_scale(None, Vector3::from([scale; 3]))
 					.unwrap();
+			} else {
+				self.icon_grow = Some(Tweener::quart_in_out(0.0001, 0.03, 0.25)); //TODO make the scale a parameter
+				self.icon_shrink = None;
 			}
-			if let Some(icon_grow) = &mut self.icon_shrink {
-				if !icon_grow.is_finished() {
-					let scale = icon_grow.move_by(info.delta);
-					self.icon
-						.set_scale(None, Vector3::from([scale; 3]))
-						.unwrap();
-				}
+		} else if let Some(icon_grow) = &mut self.icon_grow {
+			if !icon_grow.is_finished() {
+				let scale = icon_grow.move_by(info.delta);
+				self.icon
+					.set_scale(None, Vector3::from([scale; 3]))
+					.unwrap();
+			} else {
+				self.icon.set_position(None, [0.0,0.0,0.0]).unwrap();
+				self.icon.set_rotation(None, Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI) ).unwrap();
+				self.icon_grow = None;
 			}
-		} else if self.grabbable.grab_action().actor_stopped() {
+		}else if self.grabbable.grab_action().actor_stopped() {
 			let startup_settings = StartupSettings::create(&self.field.client().unwrap()).unwrap();
-			self.icon
-				.set_spatial_parent_in_place(self.client.get_root())
-				.unwrap();
-			self.grabbable
-				.content_parent()
-				.set_rotation(
-					Some(&self.field.client().unwrap().get_root()),
-					Quat::IDENTITY,
-				)
-				.unwrap();
+			//self.icon
+			//	.set_spatial_parent_in_place(self.client.get_root())
+			//	.unwrap();
+			//self.grabbable
+			//	.content_parent()
+			//	.set_rotation(
+			//		Some(&self.field.client().unwrap().get_root()),
+			//		Quat::IDENTITY,
+			//	)
+			//	.unwrap();
 			startup_settings
 				.set_root(self.grabbable.content_parent())
 				.unwrap();
-			self.icon_shrink = Some(Tweener::quart_in_out(0.03, 0.0, 0.25)); //TODO make the scale a parameter
+			self.icon_shrink = Some(Tweener::quart_in_out(0.03, 0.0001, 0.25)); //TODO make the scale a parameter
 			let future = startup_settings.generate_startup_token().unwrap();
 			let executable = dbg!(self.execute_command.clone());
 			//TODO: split the executable string for  the args
@@ -181,15 +190,13 @@ impl RootHandler for ProtoStar {
 						.stdout(Stdio::null())
 						.stderr(Stdio::null())
 						.pre_exec(|| {
-							setsid();
+							_ = setsid();
 							Ok(())
 						})
 						.spawn()
 						.expect("Failed to start child process")
 				}
 			});
-			self.icon_grow = Some(Tweener::quart_in_out(0.00, 0.03, 0.25)); //TODO make the scale a parameter
-			dbg!("reached here");
 		}
 	}
 }

@@ -38,10 +38,11 @@ async fn main() -> Result<()> {
 	let protostar = if let Some(desktop_file) = args.desktop_file {
 		ProtoStar::create_from_desktop_file(
 			client.get_root(),
+			[0.0,0.0,0.0],
 			parse_desktop_file(desktop_file).map_err(|e| Report::msg(e))?,
 		)?
 	} else if let Some(command) = args.command {
-		ProtoStar::new_raw(client.get_root(), None, command)?
+		ProtoStar::new_raw(client.get_root(), [0.0,0.0,0.0],None, command)?
 	} else {
 		bail!("No command or desktop file, nothing to launch.");
 	};
