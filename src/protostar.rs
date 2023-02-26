@@ -104,7 +104,7 @@ impl ProtoStar {
 		)?;
 		let grabbable = Grabbable::new(
 			parent,
-			Transform::default(),
+			Transform::from_position(position),
 			&field,
 			GrabData {
 				max_distance: 0.01,
@@ -151,6 +151,9 @@ impl RootHandler for ProtoStar {
 			} else {
 				self.icon_grow = Some(Tweener::quart_in_out(0.0001, 0.03, 0.25)); //TODO make the scale a parameter
 				self.icon_shrink = None;
+				self.grabbable.content_parent().set_position(Some(self.client.get_root()) , self.position).unwrap();
+				self.grabbable.content_parent().set_rotation(Some(self.client.get_root()), Quat::default()).unwrap();
+				self.icon.set_rotation(None, Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI) ).unwrap();
 			}
 		} else if let Some(icon_grow) = &mut self.icon_grow {
 			if !icon_grow.is_finished() {
@@ -159,8 +162,6 @@ impl RootHandler for ProtoStar {
 					.set_scale(None, Vector3::from([scale; 3]))
 					.unwrap();
 			} else {
-				self.icon.set_position(None, [0.0,0.0,0.0]).unwrap();
-				self.icon.set_rotation(None, Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI) ).unwrap();
 				self.icon_grow = None;
 			}
 		}else if self.grabbable.grab_action().actor_stopped() {
@@ -179,22 +180,31 @@ impl RootHandler for ProtoStar {
 				.set_root(self.grabbable.content_parent())
 				.unwrap();
 			self.icon_shrink = Some(Tweener::quart_in_out(0.03, 0.0001, 0.25)); //TODO make the scale a parameter
-			let future = startup_settings.generate_startup_token().unwrap();
+			let distance_future = self.grabbable.content_parent().get_position_rotation_scale(self.client.get_root()).unwrap();	
+			
 			let executable = dbg!(self.execute_command.clone());
+
 			//TODO: split the executable string for  the args
 			tokio::task::spawn(async move {
-				std::env::set_var("STARDUST_STARTUP_TOKEN", future.await.unwrap());
-				unsafe {
-					Command::new(executable)
-						.stdin(Stdio::null())
-						.stdout(Stdio::null())
-						.stderr(Stdio::null())
-						.pre_exec(|| {
-							_ = setsid();
-							Ok(())
-						})
-						.spawn()
-						.expect("Failed to start child process")
+				let distance_vector = distance_future.await.ok().unwrap().0;
+				let distance = distance_vector.x.abs() + distance_vector.y.abs() + distance_vector.z.abs();
+				if  dbg!(distance) > 1.0 {
+					let future = startup_settings.generate_startup_token().unwrap();
+		
+					std::env::set_var("STARDUST_STARTUP_TOKEN", future.await.unwrap());
+	
+					unsafe {
+						Command::new(executable)
+							.stdin(Stdio::null())
+							.stdout(Stdio::null())
+							.stderr(Stdio::null())
+							.pre_exec(|| {
+								_ = setsid();
+								Ok(())
+							})
+							.spawn()
+							.expect("Failed to start child process");
+					}
 				}
 			});
 		}

@@ -155,10 +155,6 @@ impl App {
 			style,
 		)
 		.unwrap();
-		protostar
-			.content_parent()
-			.set_position(None, position)
-			.unwrap();
 		Some(App {
 			_text: text,
 			_desktop_file: desktop_file,

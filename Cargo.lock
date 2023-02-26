@@ -67,12 +67,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "anyhow"
-version = "1.0.68"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2cb2f989d18dd141ab8ae82f64d1a8cdd37e0840f73a406896cf5e99502fab61"
-
-[[package]]
 name = "arrayref"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1976,11 +1970,11 @@ dependencies = [
 
 [[package]]
 name = "stardust-xr-fusion"
-version = "0.38.0"
+version = "0.38.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b7f6c2945a8246880297b1f059e48a8eeb6ba39c58f67e83c05725b86f869149"
+checksum = "45a0a1ee96c4be1d4866e1920feb4fb732b810a6cc2e9f7eeff66f07f9c2f496"
 dependencies = [
- "anyhow",
+ "color-eyre",
  "color-rs",
  "enum_dispatch",
  "flagset",
@@ -1999,9 +1993,9 @@ dependencies = [
 
 [[package]]
 name = "stardust-xr-molecules"
-version = "0.21.0"
+version = "0.21.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2ae6569520bc27bd6fc015e4e0a687bb730631dc039bb5c5c14c2ad40457cfac"
+checksum = "4c16d448b75aff896519f94910a525bf5588a53cf54d5256a7eef05f604ffce4"
 dependencies = [
  "color-rs",
  "glam 0.23.0",
