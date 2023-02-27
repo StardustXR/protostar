@@ -62,6 +62,7 @@ pub struct ProtoStar {
 	grabbable_grow: Option<Tweener<f32, f64, QuartInOut>>,
 	execute_command: String,
 	currently_shown: bool,
+	grabbabe_move: Option<Tweener<f32, f64, QuartInOut>>,
 }
 impl ProtoStar {
 	pub fn create_from_desktop_file(
@@ -144,6 +145,7 @@ impl ProtoStar {
 			grabbable_grow: None,
 			execute_command,
 			currently_shown: true,
+			grabbabe_move: None,
 		})
 	}
 	pub fn content_parent(&self) -> &Spatial {
@@ -151,17 +153,39 @@ impl ProtoStar {
 	}
 	pub fn toggle(&mut self) {
 		if self.currently_shown {
-			self.grabbable_shrink = Some(Tweener::quart_in_out(1.0, 0.0001, 0.25)); //TODO make the scale a parameter
+			self.grabbabe_move = Some(Tweener::quart_in_out(1.0, 0.0001, 0.25)); //TODO make the scale a parameter
 		} else {
-			self.grabbable_grow = Some(Tweener::quart_in_out(0.0001, 1.0, 0.25));
+			self.grabbable
+			.content_parent()
+			.set_scale(None, Vector3::from([1.0; 3]))
+			.unwrap();
+			self.grabbabe_move = Some(Tweener::quart_in_out(0.0001, 1.0, 0.25));
 		}
 		self.currently_shown = !self.currently_shown;
 	}
 }
 impl RootHandler for ProtoStar {
 	fn frame(&mut self, info: FrameInfo) {
+
 		self.grabbable.update(&info);
 
+		if let Some(grabbabe_move) = &mut self.grabbabe_move {
+			if !grabbabe_move.is_finished() {
+				let scale = grabbabe_move.move_by(info.delta);
+				self.grabbable
+					.content_parent()
+					.set_position(None, [self.position.x*scale, self.position.y*scale, self.position.z*scale])
+					.unwrap();
+			} else {
+				if grabbabe_move.final_value() == 0.0001 {
+					self.grabbable
+					.content_parent()
+					.set_scale(None, Vector3::from([0.001; 3]))
+					.unwrap();
+				}
+				self.grabbabe_move = None;
+			}
+		}
 		if let Some(grabbable_shrink) = &mut self.grabbable_shrink {
 			if !grabbable_shrink.is_finished() {
 				let scale = grabbable_shrink.move_by(info.delta);
@@ -172,6 +196,8 @@ impl RootHandler for ProtoStar {
 			} else {
 				if self.currently_shown {
 					self.grabbable_grow = Some(Tweener::quart_in_out(0.0001, 1.0, 0.25)); //TODO make the scale a parameter
+					self.grabbable.cancel_angular_velocity();
+					self.grabbable.cancel_linear_velocity();
 				}
 				self.grabbable_shrink = None;
 				self.grabbable
