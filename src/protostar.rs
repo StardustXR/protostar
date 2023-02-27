@@ -4,13 +4,13 @@ use glam::Quat;
 use mint::Vector3;
 use nix::unistd::setsid;
 use stardust_xr_fusion::{
-		client::{Client, FrameInfo, RootHandler},
-		core::values::Transform,
-		drawable::{MaterialParameter, Model, ResourceID},
-		fields::BoxField,
-		node::NodeType,
-		spatial::Spatial,
-		startup_settings::StartupSettings,
+	client::{Client, FrameInfo, RootHandler},
+	core::values::Transform,
+	drawable::{MaterialParameter, Model, ResourceID},
+	fields::BoxField,
+	node::NodeType,
+	spatial::Spatial,
+	startup_settings::StartupSettings,
 };
 use stardust_xr_molecules::{GrabData, Grabbable};
 use std::os::unix::process::CommandExt;
@@ -58,12 +58,17 @@ pub struct ProtoStar {
 	grabbable: Grabbable,
 	field: BoxField,
 	icon: Model,
-	icon_shrink: Option<Tweener<f32, f64, QuartInOut>>,
-	icon_grow: Option<Tweener<f32, f64, QuartInOut>>,
+	grabbable_shrink: Option<Tweener<f32, f64, QuartInOut>>,
+	grabbable_grow: Option<Tweener<f32, f64, QuartInOut>>,
 	execute_command: String,
+	currently_shown: bool,
 }
 impl ProtoStar {
-	pub fn create_from_desktop_file(parent: &Spatial, position: impl Into<Vector3<f32>>, desktop_file: DesktopFile) -> Result<Self> {
+	pub fn create_from_desktop_file(
+		parent: &Spatial,
+		position: impl Into<Vector3<f32>>,
+		desktop_file: DesktopFile,
+	) -> Result<Self> {
 		// dbg!(&desktop_file);
 		let raw_icons = desktop_file.get_raw_icons();
 		let mut icon = raw_icons
@@ -92,7 +97,12 @@ impl ProtoStar {
 			desktop_file.command.ok_or_else(|| eyre!("No command"))?,
 		)
 	}
-	pub fn new_raw(parent: &Spatial, position: impl Into<Vector3<f32>>, icon: Option<Icon>, execute_command: String) -> Result<Self> {
+	pub fn new_raw(
+		parent: &Spatial,
+		position: impl Into<Vector3<f32>>,
+		icon: Option<Icon>,
+		execute_command: String,
+	) -> Result<Self> {
 		let position = position.into();
 		let field = BoxField::create(
 			parent,
@@ -130,69 +140,89 @@ impl ProtoStar {
 			grabbable,
 			field,
 			icon,
-			icon_shrink: None,
-			icon_grow: None,
+			grabbable_shrink: None,
+			grabbable_grow: None,
 			execute_command,
+			currently_shown: true,
 		})
 	}
 	pub fn content_parent(&self) -> &Spatial {
 		self.grabbable.content_parent()
 	}
+	pub fn toggle(&mut self) {
+		if self.currently_shown {
+			self.grabbable_shrink = Some(Tweener::quart_in_out(1.0, 0.0001, 0.25)); //TODO make the scale a parameter
+		} else {
+			self.grabbable_grow = Some(Tweener::quart_in_out(0.0001, 1.0, 0.25));
+		}
+		self.currently_shown = !self.currently_shown;
+	}
 }
 impl RootHandler for ProtoStar {
 	fn frame(&mut self, info: FrameInfo) {
 		self.grabbable.update(&info);
-		if let Some(icon_shrink) = &mut self.icon_shrink {
-			if !icon_shrink.is_finished() {
-				let scale = icon_shrink.move_by(info.delta);
-				self.icon
+
+		if let Some(grabbable_shrink) = &mut self.grabbable_shrink {
+			if !grabbable_shrink.is_finished() {
+				let scale = grabbable_shrink.move_by(info.delta);
+				self.grabbable
+					.content_parent()
 					.set_scale(None, Vector3::from([scale; 3]))
 					.unwrap();
 			} else {
-				self.icon_grow = Some(Tweener::quart_in_out(0.0001, 0.03, 0.25)); //TODO make the scale a parameter
-				self.icon_shrink = None;
-				self.grabbable.content_parent().set_position(Some(self.client.get_root()) , self.position).unwrap();
-				self.grabbable.content_parent().set_rotation(Some(self.client.get_root()), Quat::default()).unwrap();
-				self.icon.set_rotation(None, Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI) ).unwrap();
-			}
-		} else if let Some(icon_grow) = &mut self.icon_grow {
-			if !icon_grow.is_finished() {
-				let scale = icon_grow.move_by(info.delta);
+				if self.currently_shown {
+					self.grabbable_grow = Some(Tweener::quart_in_out(0.0001, 1.0, 0.25)); //TODO make the scale a parameter
+				}
+				self.grabbable_shrink = None;
+				self.grabbable
+					.content_parent()
+					.set_position(Some(self.client.get_root()), self.position)
+					.unwrap();
+				self.grabbable
+					.content_parent()
+					.set_rotation(Some(self.client.get_root()), Quat::default())
+					.unwrap();
 				self.icon
+					.set_rotation(
+						None,
+						Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
+					)
+					.unwrap();
+			}
+		} else if let Some(grabbable_grow) = &mut self.grabbable_grow {
+			if !grabbable_grow.is_finished() {
+				let scale = grabbable_grow.move_by(info.delta);
+				self.grabbable
+					.content_parent()
 					.set_scale(None, Vector3::from([scale; 3]))
 					.unwrap();
 			} else {
-				self.icon_grow = None;
+				self.grabbable_grow = None;
 			}
-		}else if self.grabbable.grab_action().actor_stopped() {
+		} else if self.grabbable.grab_action().actor_stopped() {
 			let startup_settings = StartupSettings::create(&self.field.client().unwrap()).unwrap();
-			//self.icon
-			//	.set_spatial_parent_in_place(self.client.get_root())
-			//	.unwrap();
-			//self.grabbable
-			//	.content_parent()
-			//	.set_rotation(
-			//		Some(&self.field.client().unwrap().get_root()),
-			//		Quat::IDENTITY,
-			//	)
-			//	.unwrap();
 			startup_settings
 				.set_root(self.grabbable.content_parent())
 				.unwrap();
-			self.icon_shrink = Some(Tweener::quart_in_out(0.03, 0.0001, 0.25)); //TODO make the scale a parameter
-			let distance_future = self.grabbable.content_parent().get_position_rotation_scale(self.client.get_root()).unwrap();	
-			
+			self.grabbable_shrink = Some(Tweener::quart_in_out(0.03, 0.0001, 0.25)); //TODO make the scale a parameter
+			let distance_future = self
+				.grabbable
+				.content_parent()
+				.get_position_rotation_scale(self.client.get_root())
+				.unwrap();
+
 			let executable = dbg!(self.execute_command.clone());
 
 			//TODO: split the executable string for  the args
 			tokio::task::spawn(async move {
 				let distance_vector = distance_future.await.ok().unwrap().0;
-				let distance = distance_vector.x.abs() + distance_vector.y.abs() + distance_vector.z.abs();
-				if  dbg!(distance) > 1.0 {
+				let distance =
+					distance_vector.x.abs() + distance_vector.y.abs() + distance_vector.z.abs();
+				if dbg!(distance) > 1.0 {
 					let future = startup_settings.generate_startup_token().unwrap();
-		
+
 					std::env::set_var("STARDUST_STARTUP_TOKEN", future.await.unwrap());
-	
+
 					unsafe {
 						Command::new(executable)
 							.stdin(Stdio::null())
