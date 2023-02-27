@@ -95,7 +95,8 @@ impl App {
 			text_align: Alignment::XCenter | Alignment::YCenter,
 			..Default::default()
 		};
-		let protostar = ProtoStar::create_from_desktop_file(parent, position, desktop_file.clone()).ok()?;
+		let protostar =
+			ProtoStar::create_from_desktop_file(parent, position, desktop_file.clone()).ok()?;
 		let text = Text::create(
 			protostar.content_parent(),
 			Transform::from_position_rotation(

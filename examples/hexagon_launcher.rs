@@ -9,9 +9,12 @@ use protostar::{
 use stardust_xr_fusion::{
 	client::{Client, FrameInfo, RootHandler},
 	core::values::Transform,
-	drawable::{Alignment, Bounds, Text, TextFit, TextStyle},
+	drawable::{Alignment, Bounds, MaterialParameter, Model, ResourceID, Text, TextFit, TextStyle},
+	node::NodeError,
 	spatial::Spatial,
 };
+use stardust_xr_molecules::touch_plane::TouchPlane;
+use std::f32::consts::PI;
 use tween::TweenTime;
 
 const APP_SIZE: f32 = 0.065;
@@ -34,7 +37,7 @@ const HEX_DIRECTION_VECTORS: [Hex; 6] = [
 
 impl Hex {
 	fn new(q: isize, r: isize, s: isize) -> Self {
-		Hex { q: q, r: r, s: s }
+		Hex { q, r, s }
 	}
 
 	fn get_coords(&self) -> [f32; 3] {
@@ -78,9 +81,11 @@ async fn main() -> Result<()> {
 
 struct AppHexGrid {
 	apps: Vec<App>,
+	button: Button,
 }
 impl AppHexGrid {
 	fn new(client: &Client) -> Self {
+		let button = Button::new(client).unwrap();
 		let mut desktop_files: Vec<DesktopFile> = get_desktop_files()
 			.into_iter()
 			.filter_map(|d| parse_desktop_file(d).ok())
@@ -114,11 +119,29 @@ impl AppHexGrid {
 			}
 			radius += 1;
 		}
-		AppHexGrid { apps }
+		AppHexGrid { apps, button }
 	}
 }
 impl RootHandler for AppHexGrid {
 	fn frame(&mut self, info: FrameInfo) {
+		self.button.touch_plane.update();
+		if self.button.touch_plane.touch_started() {
+			dbg!("Touch started");
+			let color = [0.0, 1.0, 0.0, 1.0];
+			self.button
+				.model
+				.set_material_parameter(1, "color", MaterialParameter::Color(color))
+				.unwrap();
+			for app in &mut self.apps {
+				app.protostar.toggle();
+			}
+		} else if self.button.touch_plane.touch_stopped() {
+			let color = [0.0, 0.0, 1.0, 1.0];
+			self.button
+				.model
+				.set_material_parameter(1, "color", MaterialParameter::Color(color))
+				.unwrap();
+		}
 		for app in &mut self.apps {
 			app.frame(info);
 		}
@@ -147,7 +170,8 @@ impl App {
 			text_align: Alignment::XCenter | Alignment::YCenter,
 			..Default::default()
 		};
-		let protostar = ProtoStar::create_from_desktop_file(parent, position, desktop_file.clone()).ok()?;
+		let protostar =
+			ProtoStar::create_from_desktop_file(parent, position, desktop_file.clone()).ok()?;
 		let text = Text::create(
 			protostar.content_parent(),
 			Transform::from_position_rotation([0.0, 0.0, 0.004], Quat::from_rotation_y(3.14)),
@@ -166,4 +190,34 @@ impl RootHandler for App {
 	fn frame(&mut self, info: FrameInfo) {
 		self.protostar.frame(info);
 	}
+}
+
+struct Button {
+	touch_plane: TouchPlane,
+	model: Model,
+}
+impl Button {
+	fn new(client: &Client) -> Result<Self, NodeError> {
+		let touch_plane = TouchPlane::new(
+			client.get_root(),
+			Transform::default(),
+			[APP_SIZE / 2.0, APP_SIZE / 2.0],
+			APP_SIZE / 2.0,
+		)?;
+		let model = Model::create(
+			client.get_root(),
+			Transform::from_rotation_scale(
+				Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
+				[0.03, 0.03, 0.03],
+			),
+			&ResourceID::new_namespaced("protostar", "hexagon/hexagon"),
+		)?;
+		model
+			.set_material_parameter(1, "color", MaterialParameter::Color([0.0, 0.0, 1.0, 1.0]))
+			.unwrap();
+		Ok(Button { touch_plane, model })
+	}
+}
+impl RootHandler for Button {
+	fn frame(&mut self, _info: FrameInfo) {}
 }
