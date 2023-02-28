@@ -3,6 +3,7 @@ use color_eyre::eyre::{eyre, Result};
 use glam::Quat;
 use mint::Vector3;
 use nix::unistd::setsid;
+use regex::Regex;
 use stardust_xr_fusion::{
 	client::{Client, FrameInfo, RootHandler},
 	core::values::Transform,
@@ -174,7 +175,7 @@ impl RootHandler for ProtoStar {
 				let scale = grabbabe_move.move_by(info.delta);
 				self.grabbable
 					.content_parent()
-					.set_position(None, [self.position.x*scale, self.position.y*scale, self.position.z*scale])
+					.set_position(Some(self.client.get_root()), [self.position.x*scale, self.position.y*scale, self.position.z*scale])
 					.unwrap();
 			} else {
 				if grabbabe_move.final_value() == 0.0001 {
@@ -237,9 +238,9 @@ impl RootHandler for ProtoStar {
 				.get_position_rotation_scale(self.client.get_root())
 				.unwrap();
 
-			let executable = dbg!(self.execute_command.clone());
+			let executable = self.execute_command.clone();
 
-			//TODO: split the executable string for  the args
+			//TODO: split the executable string for the args
 			tokio::task::spawn(async move {
 				let distance_vector = distance_future.await.ok().unwrap().0;
 				let distance =
@@ -248,9 +249,12 @@ impl RootHandler for ProtoStar {
 					let future = startup_settings.generate_startup_token().unwrap();
 
 					std::env::set_var("STARDUST_STARTUP_TOKEN", future.await.unwrap());
-
+					let re = Regex::new(r"%[fFuUdDnNickvm]").unwrap();
+					let exec = re.replace_all(&executable, "");
+					let mut executable_array : Vec<&str> = dbg!(exec.split_whitespace().collect());
 					unsafe {
-						Command::new(executable)
+						Command::new(executable_array.remove(0))
+							.args(executable_array)
 							.stdin(Stdio::null())
 							.stdout(Stdio::null())
 							.stderr(Stdio::null())
