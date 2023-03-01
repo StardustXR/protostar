@@ -1,6 +1,7 @@
 use cached::proc_macro::cached;
 use color_eyre::eyre::Result;
 use linicon;
+use regex::Regex;
 use resvg::render;
 use resvg::tiny_skia::{Pixmap, Transform};
 use resvg::usvg::{FitTo, Tree};
@@ -12,7 +13,6 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::{env, fs};
 use walkdir::WalkDir;
-use regex::Regex;
 fn get_data_dirs() -> Vec<PathBuf> {
 	let xdg_data_dirs_str = std::env::var("XDG_DATA_DIRS").unwrap_or_default();
 
@@ -88,13 +88,12 @@ pub fn parse_desktop_file(path: PathBuf) -> Result<DesktopFile, String> {
 	let mut categories = Vec::new();
 	let mut icon = None;
 	let mut no_display = false;
-	let mut desktop_entry_found = false; 
+	let mut desktop_entry_found = false;
 
 	let re = Regex::new(r"^\[([^\]]*)\]$").unwrap();
 
 	// Loop through each line of the file
 	for line in reader.lines() {
-
 		let line = match line {
 			Ok(line) => line,
 			Err(err) => return Err(format!("Failed to read line: {}", err)),
@@ -105,13 +104,13 @@ pub fn parse_desktop_file(path: PathBuf) -> Result<DesktopFile, String> {
 			continue;
 		}
 
-		if let Some(captures) = re.captures(&line){
+		if let Some(captures) = re.captures(&line) {
 			let entry = captures.get(1).unwrap();
 			desktop_entry_found = entry.as_str().contains("Desktop Entry");
 		}
 
 		if !desktop_entry_found {
-			continue
+			continue;
 		}
 		// Split the line into a key-value pair by looking for the first "=" character
 		let parts = line.split_once('=');
