@@ -17,7 +17,9 @@ use stardust_xr_molecules::touch_plane::TouchPlane;
 use std::f32::consts::PI;
 use tween::TweenTime;
 
-const APP_SIZE: f32 = 0.065;
+const APP_SIZE: f32 = 0.06;
+const PADDING: f32 = 0.005;
+
 #[derive(Clone)]
 struct Hex {
 	q: isize,
@@ -41,9 +43,9 @@ impl Hex {
 	}
 
 	fn get_coords(&self) -> [f32; 3] {
-		let x = 3.0 / 2.0 * APP_SIZE / 2.0 * (-self.q - self.s).to_f32();
-		let y =
-			3.0_f32.sqrt() * APP_SIZE / 2.0 * ((-self.q - self.s).to_f32() / 2.0 + self.s.to_f32());
+		let x = 3.0 / 2.0 * (APP_SIZE + PADDING) / 2.0 * (-self.q - self.s).to_f32();
+		let y = 3.0_f32.sqrt() * (APP_SIZE + PADDING) / 2.0
+			* ((-self.q - self.s).to_f32() / 2.0 + self.s.to_f32());
 		[x, y, 0.0]
 	}
 
@@ -126,7 +128,6 @@ impl RootHandler for AppHexGrid {
 	fn frame(&mut self, info: FrameInfo) {
 		self.button.touch_plane.update();
 		if self.button.touch_plane.touch_started() {
-			dbg!("Touch started");
 			let color = [0.0, 1.0, 0.0, 1.0];
 			self.button
 				.model
@@ -161,9 +162,9 @@ impl App {
 	) -> Option<Self> {
 		let position = position.into();
 		let style = TextStyle {
-			character_height: APP_SIZE * 0.1,
+			character_height: (APP_SIZE + PADDING) * 0.1,
 			bounds: Some(Bounds {
-				bounds: [APP_SIZE; 2].into(),
+				bounds: [(APP_SIZE + PADDING); 2].into(),
 				fit: TextFit::Wrap,
 				bounds_align: Alignment::XCenter | Alignment::YCenter,
 			}),
@@ -174,7 +175,7 @@ impl App {
 			ProtoStar::create_from_desktop_file(parent, position, desktop_file.clone()).ok()?;
 		let text = Text::create(
 			protostar.content_parent(),
-			Transform::from_position_rotation([0.0, 0.0, 0.004], Quat::from_rotation_y(3.14)),
+			Transform::from_position_rotation([0.0, 0.0, 0.004], Quat::from_rotation_y(PI)),
 			desktop_file.name.as_deref().unwrap_or("Unknown"),
 			style,
 		)
@@ -201,8 +202,8 @@ impl Button {
 		let touch_plane = TouchPlane::new(
 			client.get_root(),
 			Transform::default(),
-			[APP_SIZE / 2.0, APP_SIZE / 2.0],
-			APP_SIZE / 2.0,
+			[(APP_SIZE + PADDING) / 2.0; 2],
+			(APP_SIZE + PADDING) / 2.0,
 		)?;
 		let model = Model::create(
 			client.get_root(),

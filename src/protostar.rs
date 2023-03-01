@@ -19,12 +19,15 @@ use std::process::{Command, Stdio};
 use std::{f32::consts::PI, sync::Arc};
 use tween::{QuartInOut, Tweener};
 
+const MODEL_SCALE: f32 = 0.03;
+const ACTIVATION_DISTANCE: f32 = 1.0;
+
 fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
 	return match &icon.icon_type {
 		IconType::Png => {
 			let t = Transform::from_rotation_scale(
 				Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
-				[0.03, 0.03, 0.03],
+				[MODEL_SCALE; 3],
 			);
 
 			let model = Model::create(
@@ -61,9 +64,9 @@ pub struct ProtoStar {
 	icon: Model,
 	grabbable_shrink: Option<Tweener<f32, f64, QuartInOut>>,
 	grabbable_grow: Option<Tweener<f32, f64, QuartInOut>>,
+	grabbabe_move: Option<Tweener<f32, f64, QuartInOut>>,
 	execute_command: String,
 	currently_shown: bool,
-	grabbabe_move: Option<Tweener<f32, f64, QuartInOut>>,
 }
 impl ProtoStar {
 	pub fn create_from_desktop_file(
@@ -130,8 +133,8 @@ impl ProtoStar {
 				Ok(Model::create(
 					grabbable.content_parent(),
 					Transform::from_rotation_scale(
-						Quat::from_xyzw(0.0, 0.707, 0.707, 0.0),
-						[0.03, 0.03, 0.03],
+						Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
+						[MODEL_SCALE; 3],
 					),
 					&ResourceID::new_namespaced("protostar", "hexagon/hexagon"),
 				)?)
@@ -157,9 +160,9 @@ impl ProtoStar {
 			self.grabbabe_move = Some(Tweener::quart_in_out(1.0, 0.0001, 0.25)); //TODO make the scale a parameter
 		} else {
 			self.grabbable
-			.content_parent()
-			.set_scale(None, Vector3::from([1.0; 3]))
-			.unwrap();
+				.content_parent()
+				.set_scale(None, Vector3::from([1.0; 3]))
+				.unwrap();
 			self.grabbabe_move = Some(Tweener::quart_in_out(0.0001, 1.0, 0.25));
 		}
 		self.currently_shown = !self.currently_shown;
@@ -167,7 +170,6 @@ impl ProtoStar {
 }
 impl RootHandler for ProtoStar {
 	fn frame(&mut self, info: FrameInfo) {
-
 		self.grabbable.update(&info);
 
 		if let Some(grabbabe_move) = &mut self.grabbabe_move {
@@ -175,14 +177,21 @@ impl RootHandler for ProtoStar {
 				let scale = grabbabe_move.move_by(info.delta);
 				self.grabbable
 					.content_parent()
-					.set_position(Some(self.client.get_root()), [self.position.x*scale, self.position.y*scale, self.position.z*scale])
+					.set_position(
+						Some(self.client.get_root()),
+						[
+							self.position.x * scale,
+							self.position.y * scale,
+							self.position.z * scale,
+						],
+					)
 					.unwrap();
 			} else {
 				if grabbabe_move.final_value() == 0.0001 {
 					self.grabbable
-					.content_parent()
-					.set_scale(None, Vector3::from([0.001; 3]))
-					.unwrap();
+						.content_parent()
+						.set_scale(None, Vector3::from([0.001; 3]))
+						.unwrap();
 				}
 				self.grabbabe_move = None;
 			}
@@ -196,7 +205,7 @@ impl RootHandler for ProtoStar {
 					.unwrap();
 			} else {
 				if self.currently_shown {
-					self.grabbable_grow = Some(Tweener::quart_in_out(0.0001, 1.0, 0.25)); //TODO make the scale a parameter
+					self.grabbable_grow = Some(Tweener::quart_in_out(0.0001, 1.0, 0.25));
 					self.grabbable.cancel_angular_velocity();
 					self.grabbable.cancel_linear_velocity();
 				}
@@ -231,7 +240,7 @@ impl RootHandler for ProtoStar {
 			startup_settings
 				.set_root(self.grabbable.content_parent())
 				.unwrap();
-			self.grabbable_shrink = Some(Tweener::quart_in_out(0.03, 0.0001, 0.25)); //TODO make the scale a parameter
+			self.grabbable_shrink = Some(Tweener::quart_in_out(MODEL_SCALE, 0.0001, 0.25));
 			let distance_future = self
 				.grabbable
 				.content_parent()
@@ -243,18 +252,19 @@ impl RootHandler for ProtoStar {
 			//TODO: split the executable string for the args
 			tokio::task::spawn(async move {
 				let distance_vector = distance_future.await.ok().unwrap().0;
-				let distance =
-					distance_vector.x.abs() + distance_vector.y.abs() + distance_vector.z.abs();
-				if dbg!(distance) > 1.0 {
+				let distance = ((distance_vector.x.powi(2) + distance_vector.y.powi(2)).sqrt()
+					+ distance_vector.z.powi(2))
+				.sqrt();
+				if dbg!(distance) > ACTIVATION_DISTANCE {
 					let future = startup_settings.generate_startup_token().unwrap();
 
 					std::env::set_var("STARDUST_STARTUP_TOKEN", future.await.unwrap());
 					let re = Regex::new(r"%[fFuUdDnNickvm]").unwrap();
 					let exec = re.replace_all(&executable, "");
-					let mut executable_array : Vec<&str> = dbg!(exec.split_whitespace().collect());
 					unsafe {
-						Command::new(executable_array.remove(0))
-							.args(executable_array)
+						Command::new("sh")
+							.arg("-c")
+							.arg(exec.to_string())
 							.stdin(Stdio::null())
 							.stdout(Stdio::null())
 							.stderr(Stdio::null())
