@@ -5,18 +5,18 @@ use mint::Vector3;
 use nix::unistd::setsid;
 use regex::Regex;
 use stardust_xr_fusion::{
-	client::{Client, FrameInfo, RootHandler},
+	client::{FrameInfo, RootHandler},
 	core::values::Transform,
-	drawable::{Alignment, MaterialParameter, Model, ResourceID, Text, TextStyle, Bounds, TextFit},
+	drawable::{Alignment, Bounds, MaterialParameter, Model, ResourceID, Text, TextFit, TextStyle},
 	fields::BoxField,
 	node::NodeType,
 	spatial::Spatial,
 	startup_settings::StartupSettings,
 };
 use stardust_xr_molecules::{GrabData, Grabbable};
+use std::f32::consts::PI;
 use std::os::unix::process::CommandExt;
 use std::process::{Command, Stdio};
-use std::{f32::consts::PI, sync::Arc};
 use tween::{QuartInOut, Tweener};
 
 const MODEL_SCALE: f32 = 0.03;
@@ -57,7 +57,7 @@ fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
 }
 
 pub struct ProtoStar {
-	client: Arc<Client>,
+	parent: Spatial,
 	position: Vector3<f32>,
 	grabbable: Grabbable,
 	field: BoxField,
@@ -112,14 +112,7 @@ impl ProtoStar {
 		execute_command: String,
 	) -> Result<Self> {
 		let position = position.into();
-		let field = BoxField::create(
-			parent,
-			Transform::default(),
-			match icon.as_ref() {
-				Some(_) => [0.05, 0.0665, 0.005],
-				_ => [0.05; 3],
-			},
-		)?;
+		let field = BoxField::create(parent, Transform::default(), [MODEL_SCALE * 2.0; 3])?;
 		let grabbable = Grabbable::new(
 			parent,
 			Transform::from_position(position),
@@ -129,6 +122,7 @@ impl ProtoStar {
 				..Default::default()
 			},
 		)?;
+		grabbable.content_parent().set_spatial_parent(parent)?;
 		field.set_spatial_parent(grabbable.content_parent())?;
 		let icon = icon
 			.map(|i| model_from_icon(grabbable.content_parent(), &i))
@@ -144,8 +138,8 @@ impl ProtoStar {
 			})?;
 
 		let label_style = TextStyle {
-			character_height: MODEL_SCALE*4.0 ,
-			bounds: Some(Bounds{
+			character_height: MODEL_SCALE * 4.0,
+			bounds: Some(Bounds {
 				bounds: [1.0; 2].into(),
 				fit: TextFit::Wrap,
 				bounds_align: Alignment::XCenter | Alignment::YCenter,
@@ -157,7 +151,7 @@ impl ProtoStar {
 			Text::create(
 				&icon,
 				Transform::from_position_rotation(
-					[0.0, 0.1, -(MODEL_SCALE*8.0)],
+					[0.0, 0.1, -(MODEL_SCALE * 8.0)],
 					Quat::from_rotation_x(PI * 0.5),
 				),
 				name,
@@ -166,7 +160,7 @@ impl ProtoStar {
 			.ok()
 		});
 		Ok(ProtoStar {
-			client: parent.client()?,
+			parent: parent.alias(),
 			position,
 			grabbable,
 			field,
@@ -204,7 +198,7 @@ impl RootHandler for ProtoStar {
 				self.grabbable
 					.content_parent()
 					.set_position(
-						Some(self.client.get_root()),
+						Some(&self.parent),
 						[
 							self.position.x * scale,
 							self.position.y * scale,
@@ -225,9 +219,13 @@ impl RootHandler for ProtoStar {
 				let scale = grabbable_shrink.move_by(info.delta);
 				self.grabbable
 					.content_parent()
-					.set_scale(None, Vector3::from([scale; 3]))
+					.set_scale(Some(&self.parent), Vector3::from([scale; 3]))
 					.unwrap();
 			} else {
+				self.grabbable
+					.content_parent()
+					.set_spatial_parent(&self.parent)
+					.unwrap();
 				if self.currently_shown {
 					self.grabbable_grow = Some(Tweener::quart_in_out(0.0001, 1.0, 0.25));
 					self.grabbable.cancel_angular_velocity();
@@ -236,11 +234,11 @@ impl RootHandler for ProtoStar {
 				self.grabbable_shrink = None;
 				self.grabbable
 					.content_parent()
-					.set_position(Some(self.client.get_root()), self.position)
+					.set_position(Some(&self.parent), self.position)
 					.unwrap();
 				self.grabbable
 					.content_parent()
-					.set_rotation(Some(self.client.get_root()), Quat::default())
+					.set_rotation(Some(&self.parent), Quat::default())
 					.unwrap();
 				self.icon
 					.set_rotation(
@@ -254,9 +252,13 @@ impl RootHandler for ProtoStar {
 				let scale = grabbable_grow.move_by(info.delta);
 				self.grabbable
 					.content_parent()
-					.set_scale(None, Vector3::from([scale; 3]))
+					.set_scale(Some(&self.parent), Vector3::from([scale; 3]))
 					.unwrap();
 			} else {
+				self.grabbable
+					.content_parent()
+					.set_spatial_parent(&self.parent)
+					.unwrap();
 				self.grabbable_grow = None;
 			}
 		} else if self.grabbable.grab_action().actor_stopped() {
@@ -268,7 +270,7 @@ impl RootHandler for ProtoStar {
 			let distance_future = self
 				.grabbable
 				.content_parent()
-				.get_position_rotation_scale(self.client.get_root())
+				.get_position_rotation_scale(&self.parent)
 				.unwrap();
 
 			let executable = self.execute_command.clone();
