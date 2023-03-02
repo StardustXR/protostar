@@ -7,7 +7,7 @@ use regex::Regex;
 use stardust_xr_fusion::{
 	client::{Client, FrameInfo, RootHandler},
 	core::values::Transform,
-	drawable::{MaterialParameter, Model, ResourceID},
+	drawable::{Alignment, MaterialParameter, Model, ResourceID, Text, TextStyle},
 	fields::BoxField,
 	node::NodeType,
 	spatial::Spatial,
@@ -62,9 +62,10 @@ pub struct ProtoStar {
 	grabbable: Grabbable,
 	field: BoxField,
 	icon: Model,
+	label: Option<Text>,
 	grabbable_shrink: Option<Tweener<f32, f64, QuartInOut>>,
 	grabbable_grow: Option<Tweener<f32, f64, QuartInOut>>,
-	grabbabe_move: Option<Tweener<f32, f64, QuartInOut>>,
+	grabbable_move: Option<Tweener<f32, f64, QuartInOut>>,
 	execute_command: String,
 	currently_shown: bool,
 }
@@ -98,6 +99,7 @@ impl ProtoStar {
 		Self::new_raw(
 			parent,
 			position,
+			desktop_file.name.as_deref(),
 			icon,
 			desktop_file.command.ok_or_else(|| eyre!("No command"))?,
 		)
@@ -105,6 +107,7 @@ impl ProtoStar {
 	pub fn new_raw(
 		parent: &Spatial,
 		position: impl Into<Vector3<f32>>,
+		name: Option<&str>,
 		icon: Option<Icon>,
 		execute_command: String,
 	) -> Result<Self> {
@@ -139,31 +142,50 @@ impl ProtoStar {
 					&ResourceID::new_namespaced("protostar", "hexagon/hexagon"),
 				)?)
 			})?;
+
+		let label_style = TextStyle {
+			character_height: 0.15,
+			bounds: None,
+			text_align: Alignment::Center.into(),
+			..Default::default()
+		};
+		let label = name.and_then(|name| {
+			Text::create(
+				&icon,
+				Transform::from_position_rotation(
+					[0.0, 0.05, -0.6],
+					Quat::from_rotation_x(PI * 0.5),
+				),
+				name,
+				label_style,
+			)
+			.ok()
+		});
 		Ok(ProtoStar {
 			client: parent.client()?,
 			position,
 			grabbable,
 			field,
+			label,
 			icon,
 			grabbable_shrink: None,
 			grabbable_grow: None,
 			execute_command,
 			currently_shown: true,
-			grabbabe_move: None,
+			grabbable_move: None,
 		})
 	}
 	pub fn content_parent(&self) -> &Spatial {
 		self.grabbable.content_parent()
 	}
 	pub fn toggle(&mut self) {
+		self.grabbable.set_enabled(!self.currently_shown).unwrap();
 		if self.currently_shown {
-			self.grabbabe_move = Some(Tweener::quart_in_out(1.0, 0.0001, 0.25)); //TODO make the scale a parameter
+			self.grabbable_move = Some(Tweener::quart_in_out(1.0, 0.0001, 0.25)); //TODO make the scale a parameter
 		} else {
-			self.grabbable
-				.content_parent()
-				.set_scale(None, Vector3::from([1.0; 3]))
-				.unwrap();
-			self.grabbabe_move = Some(Tweener::quart_in_out(0.0001, 1.0, 0.25));
+			self.icon.set_enabled(true).unwrap();
+			self.label.as_ref().map(|l| l.set_enabled(true).unwrap());
+			self.grabbable_move = Some(Tweener::quart_in_out(0.0001, 1.0, 0.25));
 		}
 		self.currently_shown = !self.currently_shown;
 	}
@@ -172,9 +194,9 @@ impl RootHandler for ProtoStar {
 	fn frame(&mut self, info: FrameInfo) {
 		self.grabbable.update(&info);
 
-		if let Some(grabbabe_move) = &mut self.grabbabe_move {
-			if !grabbabe_move.is_finished() {
-				let scale = grabbabe_move.move_by(info.delta);
+		if let Some(grabbable_move) = &mut self.grabbable_move {
+			if !grabbable_move.is_finished() {
+				let scale = grabbable_move.move_by(info.delta);
 				self.grabbable
 					.content_parent()
 					.set_position(
@@ -187,13 +209,11 @@ impl RootHandler for ProtoStar {
 					)
 					.unwrap();
 			} else {
-				if grabbabe_move.final_value() == 0.0001 {
-					self.grabbable
-						.content_parent()
-						.set_scale(None, Vector3::from([0.001; 3]))
-						.unwrap();
+				if grabbable_move.final_value() == 0.0001 {
+					self.icon.set_enabled(false).unwrap();
+					self.label.as_ref().map(|l| l.set_enabled(false).unwrap());
 				}
-				self.grabbabe_move = None;
+				self.grabbable_move = None;
 			}
 		}
 		if let Some(grabbable_shrink) = &mut self.grabbable_shrink {

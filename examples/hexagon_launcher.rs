@@ -9,7 +9,7 @@ use protostar::{
 use stardust_xr_fusion::{
 	client::{Client, FrameInfo, RootHandler},
 	core::values::Transform,
-	drawable::{Alignment, Bounds, MaterialParameter, Model, ResourceID, Text, TextFit, TextStyle},
+	drawable::{MaterialParameter, Model, ResourceID},
 	node::NodeError,
 	spatial::Spatial,
 };
@@ -149,7 +149,6 @@ impl RootHandler for AppHexGrid {
 	}
 }
 struct App {
-	_text: Text,
 	_desktop_file: DesktopFile,
 	protostar: ProtoStar,
 }
@@ -161,27 +160,9 @@ impl App {
 		desktop_file: DesktopFile,
 	) -> Option<Self> {
 		let position = position.into();
-		let style = TextStyle {
-			character_height: (APP_SIZE + PADDING) * 0.1,
-			bounds: Some(Bounds {
-				bounds: [(APP_SIZE + PADDING); 2].into(),
-				fit: TextFit::Wrap,
-				bounds_align: Alignment::XCenter | Alignment::YCenter,
-			}),
-			text_align: Alignment::XCenter | Alignment::YCenter,
-			..Default::default()
-		};
 		let protostar =
 			ProtoStar::create_from_desktop_file(parent, position, desktop_file.clone()).ok()?;
-		let text = Text::create(
-			protostar.content_parent(),
-			Transform::from_position_rotation([0.0, 0.0, 0.004], Quat::from_rotation_y(PI)),
-			desktop_file.name.as_deref().unwrap_or("Unknown"),
-			style,
-		)
-		.unwrap();
 		Some(App {
-			_text: text,
 			_desktop_file: desktop_file,
 			protostar,
 		})
