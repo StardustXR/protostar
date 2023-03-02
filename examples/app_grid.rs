@@ -1,5 +1,4 @@
 use color_eyre::eyre::Result;
-use glam::Quat;
 use manifest_dir_macros::directory_relative_path;
 use mint::Vector3;
 use protostar::{
@@ -8,8 +7,6 @@ use protostar::{
 };
 use stardust_xr_fusion::{
 	client::{Client, FrameInfo, RootHandler},
-	core::values::Transform,
-	drawable::{Alignment, Bounds, Text, TextFit, TextStyle},
 	spatial::Spatial,
 };
 
@@ -72,7 +69,6 @@ impl RootHandler for AppGrid {
 	}
 }
 struct App {
-	_text: Text,
 	_desktop_file: DesktopFile,
 	protostar: ProtoStar,
 }
@@ -82,33 +78,11 @@ impl App {
 		parent: &Spatial,
 		position: impl Into<Vector3<f32>>,
 		desktop_file: DesktopFile,
-		//style: TextStyle,
 	) -> Option<Self> {
 		let position = position.into();
-		let style = TextStyle {
-			character_height: APP_SIZE * 0.1,
-			bounds: Some(Bounds {
-				bounds: [APP_SIZE; 2].into(),
-				fit: TextFit::Wrap,
-				bounds_align: Alignment::XCenter | Alignment::YCenter,
-			}),
-			text_align: Alignment::XCenter | Alignment::YCenter,
-			..Default::default()
-		};
 		let protostar =
 			ProtoStar::create_from_desktop_file(parent, position, desktop_file.clone()).ok()?;
-		let text = Text::create(
-			protostar.content_parent(),
-			Transform::from_position_rotation(
-				[0.0, 0.0, APP_SIZE / 2.0],
-				Quat::from_rotation_y(3.14),
-			),
-			desktop_file.name.as_deref().unwrap_or("Unknown"),
-			style,
-		)
-		.unwrap();
 		Some(App {
-			_text: text,
 			_desktop_file: desktop_file,
 			protostar,
 		})

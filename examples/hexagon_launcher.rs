@@ -10,10 +10,11 @@ use stardust_xr_fusion::{
 	client::{Client, FrameInfo, RootHandler},
 	core::values::Transform,
 	drawable::{MaterialParameter, Model, ResourceID},
+	fields::BoxField,
 	node::NodeError,
 	spatial::Spatial,
 };
-use stardust_xr_molecules::touch_plane::TouchPlane;
+use stardust_xr_molecules::{touch_plane::TouchPlane, GrabData, Grabbable};
 use std::f32::consts::PI;
 use tween::TweenTime;
 
@@ -110,7 +111,7 @@ impl AppHexGrid {
 					};
 					apps.push(
 						App::new(
-							client.get_root(),
+							button.grabbable.content_parent(),
 							hex.get_coords(),
 							desktop_files.pop().unwrap(),
 						)
@@ -126,7 +127,7 @@ impl AppHexGrid {
 }
 impl RootHandler for AppHexGrid {
 	fn frame(&mut self, info: FrameInfo) {
-		self.button.touch_plane.update();
+		self.button.frame(info);
 		if self.button.touch_plane.touch_started() {
 			let color = [0.0, 1.0, 0.0, 1.0];
 			self.button
@@ -176,30 +177,48 @@ impl RootHandler for App {
 
 struct Button {
 	touch_plane: TouchPlane,
+	grabbable: Grabbable,
 	model: Model,
 }
 impl Button {
 	fn new(client: &Client) -> Result<Self, NodeError> {
-		let touch_plane = TouchPlane::new(
+		let field = BoxField::create(client.get_root(), Transform::default(), [APP_SIZE; 3])?;
+		let grabbable = Grabbable::new(
 			client.get_root(),
+			Transform::default(),
+			&field,
+			GrabData {
+				max_distance: 0.01,
+				..Default::default()
+			},
+		)?;
+		field.set_spatial_parent(grabbable.content_parent())?;
+		let touch_plane = TouchPlane::new(
+			grabbable.content_parent(),
 			Transform::default(),
 			[(APP_SIZE + PADDING) / 2.0; 2],
 			(APP_SIZE + PADDING) / 2.0,
 		)?;
+
 		let model = Model::create(
-			client.get_root(),
+			grabbable.content_parent(),
 			Transform::from_rotation_scale(
 				Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
 				[0.03, 0.03, 0.03],
 			),
 			&ResourceID::new_namespaced("protostar", "hexagon/hexagon"),
 		)?;
-		model
-			.set_material_parameter(1, "color", MaterialParameter::Color([0.0, 0.0, 1.0, 1.0]))
-			.unwrap();
-		Ok(Button { touch_plane, model })
+		model.set_material_parameter(1, "color", MaterialParameter::Color([0.0, 0.0, 1.0, 1.0]))?;
+		Ok(Button {
+			touch_plane,
+			grabbable,
+			model,
+		})
 	}
 }
 impl RootHandler for Button {
-	fn frame(&mut self, _info: FrameInfo) {}
+	fn frame(&mut self, info: FrameInfo) {
+		self.touch_plane.update();
+		self.grabbable.update(&info);
+	}
 }
