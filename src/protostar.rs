@@ -7,7 +7,7 @@ use regex::Regex;
 use stardust_xr_fusion::{
 	client::{Client, FrameInfo, RootHandler},
 	core::values::Transform,
-	drawable::{Alignment, MaterialParameter, Model, ResourceID, Text, TextStyle},
+	drawable::{Alignment, MaterialParameter, Model, ResourceID, Text, TextStyle, Bounds, TextFit},
 	fields::BoxField,
 	node::NodeType,
 	spatial::Spatial,
@@ -144,8 +144,12 @@ impl ProtoStar {
 			})?;
 
 		let label_style = TextStyle {
-			character_height: 0.15,
-			bounds: None,
+			character_height: MODEL_SCALE*4.0 ,
+			bounds: Some(Bounds{
+				bounds: [1.0; 2].into(),
+				fit: TextFit::Wrap,
+				bounds_align: Alignment::XCenter | Alignment::YCenter,
+			}),
 			text_align: Alignment::Center.into(),
 			..Default::default()
 		};
@@ -153,7 +157,7 @@ impl ProtoStar {
 			Text::create(
 				&icon,
 				Transform::from_position_rotation(
-					[0.0, 0.05, -0.6],
+					[0.0, 0.1, -(MODEL_SCALE*8.0)],
 					Quat::from_rotation_x(PI * 0.5),
 				),
 				name,
