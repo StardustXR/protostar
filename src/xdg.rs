@@ -195,7 +195,9 @@ impl DesktopFile {
 
 		let cache_icon_path = get_image_cache_dir().join(icon_name).canonicalize();
 		if cache_icon_path.is_ok() {
-			return vec![Icon::from_path(cache_icon_path.unwrap(), 128).unwrap()];
+			if let Some(icon) = Icon::from_path(cache_icon_path.unwrap(), 128) {
+				return vec![icon];
+			}
 		}
 
 		let mut icons_iter = linicon::lookup_icon(icon_name)
@@ -232,12 +234,11 @@ pub enum IconType {
 impl Icon {
 	pub fn from_path(path: PathBuf, size: u16) -> Option<Icon> {
 		let icon_type = match path.extension().and_then(|ext| ext.to_str()) {
-			Some("png") => Some(IconType::Png),
-			Some("svg") => Some(IconType::Svg),
-			Some("glb") | Some("gltf") => Some(IconType::Gltf),
+			Some("png") => IconType::Png,
+			Some("svg") => IconType::Svg,
+			Some("glb") | Some("gltf") => IconType::Gltf,
 			_ => return None,
-		}
-		.unwrap();
+		};
 		return Some(Icon {
 			icon_type,
 			path,
