@@ -218,7 +218,13 @@ impl Button {
 }
 impl RootHandler for Button {
 	fn frame(&mut self, info: FrameInfo) {
-		self.touch_plane.update();
 		self.grabbable.update(&info);
+		if self.grabbable.grab_action().actor_started() {
+			let _ = self.touch_plane.set_enabled(false);
+		}
+		if self.grabbable.grab_action().actor_stopped() {
+			let _ = self.touch_plane.set_enabled(true);
+		}
+		self.touch_plane.update();
 	}
 }

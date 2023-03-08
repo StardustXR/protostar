@@ -20,7 +20,7 @@ use std::process::{Command, Stdio};
 use tween::{QuartInOut, Tweener};
 
 const MODEL_SCALE: f32 = 0.03;
-const ACTIVATION_DISTANCE: f32 = 1.0;
+const ACTIVATION_DISTANCE: f32 = 0.5;
 
 fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
 	return match &icon.icon_type {
