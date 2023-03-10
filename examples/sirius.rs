@@ -34,8 +34,8 @@ struct Star {
 }
 
 impl Star {
-    fn new(parent: &Spatial, _name: Option<&str>,path: &str) -> Option<Self> {
-        let cli = ProtoStar::new_raw(parent, None, path.to_string()).unwrap();
+    fn new(parent: &Spatial, _name: Option<&str>,path: String) -> Option<Self> {
+        let cli = ProtoStar::new_raw(parent, None, path).unwrap();
         Some(Star {
             cli,
         })
@@ -48,6 +48,13 @@ impl RootHandler for Star {
     }
 }
 
+const LOCATION_OF_TELESCOPE: &str = "/home/bc/repos/stardust/";
+const EXECUTABLES: [&str; 3] = [
+    "magnetar",
+    "atmosphere",
+    "manifold",
+];
+
 struct Sirius {
 	touch_plane: TouchPlane,
 	model: Model,
@@ -59,11 +66,10 @@ struct Sirius {
 }
 impl Sirius {
 	fn new(client: &Client) -> Result<Self, NodeError> {
-        let client_list: Vec<(Option<&str>, &str)> = Vec::from([
-            (Some("Magnetar"), "/home/bc/repos/stardust/telescope/repos/magnetar/target/release/magnetar"),
-            (Some("Atmosphere"), "/home/bc/repos/stardust/telescope/repos/atmosphere/target/release/atmosphere"),
-            (Some("Manifold"), "/home/bc/repos/stardust/telescope/repos/manifold/target/release/manifold"),
-        ]);
+        let mut client_list: Vec<(Option<&str>, String)> = Vec::new();
+        for executable in EXECUTABLES {
+            client_list.push((Some(executable), format!("{}telescope/{}/target/release/{}", LOCATION_OF_TELESCOPE, executable, executable)));
+        }
         let root = Spatial::create(client.get_root(), Transform::default(), false).unwrap();
         
         let field = BoxField::create(&root, Transform::default(), Vec3::from([0.1;3])).unwrap();
