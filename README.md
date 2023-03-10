@@ -10,3 +10,6 @@ TODO:
 3. ~~Use XDG_CACHE_DIR to rasterize svgs (done)~~
 4. Make sure it's using the current icon theme
 5. Design a better app launcher ui
+
+TO RUN DOCK
+cargo run --example sirius
