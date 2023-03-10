@@ -34,8 +34,8 @@ struct Star {
 }
 
 impl Star {
-    fn new(parent: &Spatial, name: Option<&str>,path: &str) -> Option<Self> {
-        let cli = ProtoStar::new_raw(parent, Vec3::default(), name, None, path.to_string()).unwrap();
+    fn new(parent: &Spatial, _name: Option<&str>,path: &str) -> Option<Self> {
+        let cli = ProtoStar::new_raw(parent, None, path.to_string()).unwrap();
         Some(Star {
             cli,
         })
@@ -60,9 +60,9 @@ struct Sirius {
 impl Sirius {
 	fn new(client: &Client) -> Result<Self, NodeError> {
         let client_list: Vec<(Option<&str>, &str)> = Vec::from([
-            (Some("Magnetar"), "$HOME/repos/stardust/telescope/repos/magnetar/target/release/magnetar"),
-            (Some("Atmosphere"), "$HOME/repos/stardust/telescope/repos/atmosphere/target/release/atmosphere"),
-            (Some("Manifold"), "$HOME/repos/stardust/telescope/repos/manifold/target/release/manifold"),
+            (Some("Magnetar"), "/home/bc/repos/stardust/telescope/repos/magnetar/target/release/magnetar"),
+            (Some("Atmosphere"), "/home/bc/repos/stardust/telescope/repos/atmosphere/target/release/atmosphere"),
+            (Some("Manifold"), "/home/bc/repos/stardust/telescope/repos/manifold/target/release/manifold"),
         ]);
         let root = Spatial::create(client.get_root(), Transform::default(), false).unwrap();
         

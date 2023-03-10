@@ -34,7 +34,7 @@ const HEX_DIRECTION_VECTORS: [Hex; 6] = [
 	Hex { q: 1, r: -1, s: 0 },
 	Hex { q: 0, r: -1, s: 1 },
 	Hex { q: -1, r: 0, s: 1 },
-	Hex { q: -1, r: 1, s: 0 },
+	Hex{ q: -1, r: 1, s: 0 },
 	Hex { q: 0, r: 1, s: -1 },
 ];
 
@@ -162,7 +162,7 @@ impl App {
 	) -> Option<Self> {
 		let position = position.into();
 		let protostar =
-			ProtoStar::create_from_desktop_file(parent, position, desktop_file.clone()).ok()?;
+			ProtoStar::create_from_desktop_file(parent, desktop_file.clone()).ok()?;
 		Some(App {
 			_desktop_file: desktop_file,
 			protostar,
