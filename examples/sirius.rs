@@ -68,7 +68,7 @@ impl Sirius {
 	fn new(client: &Client) -> Result<Self, NodeError> {
         let mut client_list: Vec<(Option<&str>, String)> = Vec::new();
         for executable in EXECUTABLES {
-            client_list.push((Some(executable), format!("{}telescope/{}/target/release/{}", LOCATION_OF_TELESCOPE, executable, executable)));
+            client_list.push((Some(executable), format!("{}telescope/repos/{}/target/release/{}", LOCATION_OF_TELESCOPE, executable, executable)));
         }
         let root = Spatial::create(client.get_root(), Transform::default(), false).unwrap();
         
