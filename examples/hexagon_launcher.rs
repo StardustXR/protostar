@@ -95,7 +95,7 @@ impl AppHexGrid {
 			.filter(|d| !d.no_display)
 			.collect();
 
-		desktop_files.sort_by_key(|d| d.clone().name.unwrap());
+		desktop_files.sort_by_key(|d| d.clone().name.unwrap_or_default());
 
 		let mut apps = Vec::new();
 		let mut radius = 1;
