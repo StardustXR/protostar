@@ -183,7 +183,7 @@ struct Button {
 impl Button {
 	fn new(client: &Client) -> Result<Self, NodeError> {
 		let field = BoxField::create(client.get_root(), Transform::default(), [APP_SIZE; 3])?;
-		let grabbable = Grabbable::new(
+		let grabbable = Grabbable::create(
 			client.get_root(),
 			Transform::default(),
 			&field,
@@ -193,11 +193,13 @@ impl Button {
 			},
 		)?;
 		field.set_spatial_parent(grabbable.content_parent())?;
-		let touch_plane = TouchPlane::new(
+		let touch_plane = TouchPlane::create(
 			grabbable.content_parent(),
 			Transform::default(),
 			[(APP_SIZE + PADDING) / 2.0; 2],
 			(APP_SIZE + PADDING) / 2.0,
+			0.0..1.0,
+			0.0..1.0,
 		)?;
 
 		let model = Model::create(
@@ -218,7 +220,7 @@ impl Button {
 }
 impl RootHandler for Button {
 	fn frame(&mut self, info: FrameInfo) {
-		self.grabbable.update(&info);
+		let _ = self.grabbable.update(&info);
 		if self.grabbable.grab_action().actor_started() {
 			let _ = self.touch_plane.set_enabled(false);
 		}

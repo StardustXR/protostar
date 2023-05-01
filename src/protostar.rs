@@ -113,7 +113,7 @@ impl ProtoStar {
 	) -> Result<Self> {
 		let position = position.into();
 		let field = BoxField::create(parent, Transform::default(), [MODEL_SCALE * 2.0; 3])?;
-		let grabbable = Grabbable::new(
+		let grabbable = Grabbable::create(
 			parent,
 			Transform::from_position(position),
 			&field,
@@ -190,7 +190,7 @@ impl ProtoStar {
 }
 impl RootHandler for ProtoStar {
 	fn frame(&mut self, info: FrameInfo) {
-		self.grabbable.update(&info);
+		let _ = self.grabbable.update(&info);
 
 		if let Some(grabbable_move) = &mut self.grabbable_move {
 			if !grabbable_move.is_finished() {
@@ -274,6 +274,7 @@ impl RootHandler for ProtoStar {
 				.unwrap();
 
 			let executable = self.execute_command.clone();
+			let client = self.content_parent().client().unwrap();
 
 			//TODO: split the executable string for the args
 			tokio::task::spawn(async move {
@@ -283,6 +284,11 @@ impl RootHandler for ProtoStar {
 				.sqrt();
 				if dbg!(distance) > ACTIVATION_DISTANCE {
 					let future = startup_settings.generate_startup_token().unwrap();
+
+					let env = client.get_connection_environment().unwrap().await.unwrap();
+					for (k, v) in env.into_iter() {
+						std::env::set_var(k, v);
+					}
 
 					std::env::set_var("STARDUST_STARTUP_TOKEN", future.await.unwrap());
 					let re = Regex::new(r"%[fFuUdDnNickvm]").unwrap();
