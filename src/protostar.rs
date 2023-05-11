@@ -1,9 +1,10 @@
-use crate::xdg::{DesktopFile, Icon, IconType};
-use color_eyre::eyre::{eyre, Result};
+use crate::{
+	application::Application,
+	xdg::{DesktopFile, Icon, IconType},
+};
+use color_eyre::eyre::Result;
 use glam::Quat;
 use mint::Vector3;
-use nix::unistd::setsid;
-use regex::Regex;
 use stardust_xr_fusion::{
 	client::{FrameInfo, RootHandler},
 	core::values::Transform,
@@ -11,12 +12,9 @@ use stardust_xr_fusion::{
 	fields::BoxField,
 	node::NodeType,
 	spatial::Spatial,
-	startup_settings::StartupSettings,
 };
 use stardust_xr_molecules::{GrabData, Grabbable};
 use std::f32::consts::PI;
-use std::os::unix::process::CommandExt;
-use std::process::{Command, Stdio};
 use tween::{QuartInOut, Tweener};
 
 const MODEL_SCALE: f32 = 0.03;
@@ -35,13 +33,10 @@ fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
 				t,
 				&ResourceID::new_namespaced("protostar", "hexagon/hexagon"),
 			)?;
-			model.set_material_parameter(
-				1,
-				"color",
-				MaterialParameter::Color([0.0, 1.0, 1.0, 1.0]),
-			)?;
-			model.set_material_parameter(
-				0,
+			model
+				.model_part("Hex")?
+				.set_material_parameter("color", MaterialParameter::Color([0.0, 1.0, 1.0, 1.0]))?;
+			model.model_part("Icon")?.set_material_parameter(
 				"diffuse",
 				MaterialParameter::Texture(ResourceID::Direct(icon.path.clone())),
 			)?;
@@ -57,16 +52,16 @@ fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
 }
 
 pub struct ProtoStar {
+	application: Application,
 	parent: Spatial,
 	position: Vector3<f32>,
 	grabbable: Grabbable,
-	field: BoxField,
+	_field: BoxField,
 	icon: Model,
 	label: Option<Text>,
 	grabbable_shrink: Option<Tweener<f32, f64, QuartInOut>>,
 	grabbable_grow: Option<Tweener<f32, f64, QuartInOut>>,
 	grabbable_move: Option<Tweener<f32, f64, QuartInOut>>,
-	execute_command: String,
 	currently_shown: bool,
 }
 impl ProtoStar {
@@ -75,44 +70,10 @@ impl ProtoStar {
 		position: impl Into<Vector3<f32>>,
 		desktop_file: DesktopFile,
 	) -> Result<Self> {
-		// dbg!(&desktop_file);
-		let raw_icons = desktop_file.get_raw_icons();
-		let mut icon = raw_icons
-			.clone()
-			.into_iter()
-			.find(|i| match i.icon_type {
-				IconType::Gltf => true,
-				_ => false,
-			})
-			.or(raw_icons.into_iter().max_by_key(|i| i.size));
-
-		match icon {
-			Some(i) => {
-				icon = match i.cached_process(128) {
-					Ok(i) => Some(i),
-					_ => None,
-				}
-			}
-			None => {}
-		}
-
-		Self::new_raw(
-			parent,
-			position,
-			desktop_file.name.as_deref(),
-			icon,
-			desktop_file.command.ok_or_else(|| eyre!("No command"))?,
-		)
-	}
-	pub fn new_raw(
-		parent: &Spatial,
-		position: impl Into<Vector3<f32>>,
-		name: Option<&str>,
-		icon: Option<Icon>,
-		execute_command: String,
-	) -> Result<Self> {
 		let position = position.into();
 		let field = BoxField::create(parent, Transform::default(), [MODEL_SCALE * 2.0; 3])?;
+		let application = Application::create(&parent.client()?, desktop_file)?;
+		let icon = application.icon(128, false);
 		let grabbable = Grabbable::create(
 			parent,
 			Transform::from_position(position),
@@ -147,7 +108,7 @@ impl ProtoStar {
 			text_align: Alignment::Center.into(),
 			..Default::default()
 		};
-		let label = name.and_then(|name| {
+		let label = application.name().and_then(|name| {
 			Text::create(
 				&icon,
 				Transform::from_position_rotation(
@@ -163,14 +124,14 @@ impl ProtoStar {
 			parent: parent.alias(),
 			position,
 			grabbable,
-			field,
+			_field: field,
 			label,
+			application,
 			icon,
 			grabbable_shrink: None,
 			grabbable_grow: None,
-			execute_command,
-			currently_shown: true,
 			grabbable_move: None,
+			currently_shown: true,
 		})
 	}
 	pub fn content_parent(&self) -> &Spatial {
@@ -261,20 +222,15 @@ impl RootHandler for ProtoStar {
 					.unwrap();
 				self.grabbable_grow = None;
 			}
-		} else if self.grabbable.grab_action().actor_stopped() {
-			let startup_settings = StartupSettings::create(&self.field.client().unwrap()).unwrap();
-			startup_settings
-				.set_root(self.grabbable.content_parent())
-				.unwrap();
+		} else if self.grabbable.valid() && self.grabbable.grab_action().actor_stopped() {
 			self.grabbable_shrink = Some(Tweener::quart_in_out(MODEL_SCALE, 0.0001, 0.25));
-			let distance_future = self
-				.grabbable
+			let Ok(distance_future) = self.grabbable
 				.content_parent()
 				.get_position_rotation_scale(&self.parent)
-				.unwrap();
+				 else {return};
 
-			let executable = self.execute_command.clone();
-			let client = self.content_parent().client().unwrap();
+			let application = self.application.clone();
+			let space = self.content_parent().alias();
 
 			//TODO: split the executable string for the args
 			tokio::task::spawn(async move {
@@ -283,30 +239,7 @@ impl RootHandler for ProtoStar {
 					+ distance_vector.z.powi(2))
 				.sqrt();
 				if dbg!(distance) > ACTIVATION_DISTANCE {
-					let future = startup_settings.generate_startup_token().unwrap();
-
-					let env = client.get_connection_environment().unwrap().await.unwrap();
-					for (k, v) in env.into_iter() {
-						std::env::set_var(k, v);
-					}
-
-					std::env::set_var("STARDUST_STARTUP_TOKEN", future.await.unwrap());
-					let re = Regex::new(r"%[fFuUdDnNickvm]").unwrap();
-					let exec = re.replace_all(&executable, "");
-					unsafe {
-						Command::new("sh")
-							.arg("-c")
-							.arg(exec.to_string())
-							.stdin(Stdio::null())
-							.stdout(Stdio::null())
-							.stderr(Stdio::null())
-							.pre_exec(|| {
-								_ = setsid();
-								Ok(())
-							})
-							.spawn()
-							.expect("Failed to start child process");
-					}
+					let _ = application.launch(&space);
 				}
 			});
 		}

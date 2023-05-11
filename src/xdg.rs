@@ -183,19 +183,19 @@ pub struct DesktopFile {
 	pub no_display: bool,
 }
 impl DesktopFile {
-	pub fn get_raw_icons(&self) -> Vec<Icon> {
+	pub fn get_raw_icons(&self, preferred_px_size: u16) -> Vec<Icon> {
 		// Get the name of the icon from the DesktopFile struct
 		let Some(icon_name) = self.icon.as_ref() else { return Vec::new(); };
 		let test_icon_path = self.path.join(Path::new(icon_name));
 		if test_icon_path.exists() {
-			if let Some(icon) = Icon::from_path(test_icon_path, 128) {
+			if let Some(icon) = Icon::from_path(test_icon_path, preferred_px_size) {
 				return vec![icon];
 			}
 		}
 
 		let cache_icon_path = get_image_cache_dir().join(icon_name).canonicalize();
 		if cache_icon_path.is_ok() {
-			if let Some(icon) = Icon::from_path(cache_icon_path.unwrap(), 128) {
+			if let Some(icon) = Icon::from_path(cache_icon_path.unwrap(), preferred_px_size) {
 				return vec![icon];
 			}
 		}
@@ -272,7 +272,7 @@ fn test_get_icon_path() {
 	};
 
 	// Call the get_icon_path() function with a size argument and store the result
-	let icon_paths = desktop_file.get_raw_icons();
+	let icon_paths = desktop_file.get_raw_icons(128);
 	dbg!(&icon_paths);
 
 	// Assert that the get_icon_path() function returns the expected result
