@@ -1,18 +1,68 @@
-use cached::proc_macro::cached;
 use color_eyre::eyre::Result;
+use lazy_static::lazy_static;
 use linicon;
 use regex::Regex;
 use resvg::render;
 use resvg::tiny_skia::{Pixmap, Transform};
 use resvg::usvg::{FitTo, Tree};
+use serde::{Deserialize, Serialize};
+use serde_json;
+use serde_with::serde_as;
+use std::collections::HashMap;
 use std::ffi::OsString;
 use std::fs::create_dir_all;
+use std::fs::File;
 use std::io::{BufRead, BufReader, ErrorKind};
-use std::os::unix::fs::symlink;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+use std::sync::Mutex;
 use std::{env, fs};
 use walkdir::WalkDir;
+
+#[serde_as]
+#[derive(Deserialize, Serialize)]
+struct ImageCache {
+	path: PathBuf,
+	#[serde_as(as = "Vec<(_, _)>")]
+	pub map: HashMap<String, PathBuf>,
+}
+
+impl ImageCache {
+	fn new(path: PathBuf) -> Self {
+		if let Ok(mut file) = File::open(&path) {
+			let mut buf = vec![];
+			if file.read_to_end(&mut buf).is_ok() {
+				if let Ok(cache) = serde_json::from_slice(&buf[..]) {
+					return cache;
+				}
+			}
+		}
+
+		//There was no file, or the file failed to load, create a new World.
+		ImageCache {
+			path,
+			map: HashMap::new(),
+		}
+	}
+
+	fn insert(&mut self, k: String, v: PathBuf) {
+		self.map.insert(k, v);
+	}
+
+	fn save(&self) {
+		let mut f = File::create(&self.path).unwrap();
+		let buf = serde_json::to_vec(&self).unwrap();
+		f.write_all(&buf[..]).unwrap();
+	}
+}
+
+lazy_static! {
+	static ref IMAGE_CACHE: Mutex<ImageCache> = Mutex::new(ImageCache::new(
+		get_image_cache_dir().join("imagechache.map")
+	));
+}
+
 fn get_data_dirs() -> Vec<PathBuf> {
 	let xdg_data_dirs_str = std::env::var("XDG_DATA_DIRS").unwrap_or_default();
 
@@ -193,10 +243,11 @@ impl DesktopFile {
 			}
 		}
 
-		let cache_icon_path = get_image_cache_dir().join(icon_name).canonicalize();
-		if cache_icon_path.is_ok() {
-			if let Some(icon) = Icon::from_path(cache_icon_path.unwrap(), preferred_px_size) {
-				return vec![icon];
+		if let Some(cache_icon_path) = IMAGE_CACHE.lock().unwrap().map.get(icon_name) {
+			if cache_icon_path.exists() {
+				if let Some(icon) = Icon::from_path(cache_icon_path.to_owned(), 128) {
+					return vec![icon];
+				}
 			}
 		}
 
@@ -247,10 +298,28 @@ impl Icon {
 	}
 
 	pub fn cached_process(self, size: u16) -> Result<Icon, std::io::Error> {
-		let new_path =
-			get_image_cache_dir().join(self.path.with_extension("").file_name().unwrap());
-		if !new_path.exists() {
-			_ = symlink(self.path.clone(), new_path);
+		if !IMAGE_CACHE.lock().unwrap().map.contains_key(
+			&self
+				.path
+				.with_extension("")
+				.file_name()
+				.unwrap()
+				.to_str()
+				.unwrap()
+				.to_owned(),
+		) {
+			dbg!("Saving value in the DB");
+			IMAGE_CACHE.lock().unwrap().insert(
+				self.path
+					.with_extension("")
+					.file_name()
+					.unwrap()
+					.to_str()
+					.unwrap()
+					.to_owned(),
+				self.path.clone(),
+			);
+			IMAGE_CACHE.lock().unwrap().save();
 		}
 		match self.icon_type {
 			IconType::Svg => Ok(Icon::from_path(get_png_from_svg(self.path, size)?, size).unwrap()),
@@ -285,7 +354,6 @@ fn test_get_icon_path() {
 	));
 }
 
-#[cached]
 pub fn get_image_cache_dir() -> PathBuf {
 	let cache_dir;
 	if let Ok(xdg_cache_home) = std::env::var("XDG_CACHE_HOME") {
