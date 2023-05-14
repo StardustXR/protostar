@@ -71,7 +71,7 @@ impl Application {
 		tokio::task::spawn(async move {
 			let Ok(startup_token) = future_startup_token.await else {return};
 			let Ok(connection_env) = future_connection_env.await else {return};
-
+			dbg!(&connection_env);
 			for (k, v) in connection_env.into_iter() {
 				std::env::set_var(k, v);
 			}

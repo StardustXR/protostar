@@ -19,17 +19,11 @@ async fn main() -> Result<()> {
 	let (client, event_loop) = Client::connect_with_async_loop().await?;
 	client.set_base_prefixes(&[directory_relative_path!("res")]);
 
-	let protostar = if let Some(desktop_file) = args.desktop_file {
-		ProtoStar::create_from_desktop_file(
-			client.get_root(),
-			[0.0, 0.0, 0.0],
-			parse_desktop_file(desktop_file).map_err(|e| Report::msg(e))?,
-		)?
-	} else if let Some(command) = args.command {
-		ProtoStar::new_raw(client.get_root(), [0.0, 0.0, 0.0], None, None, command)?
-	} else {
-		bail!("No command or desktop file, nothing to launch.");
-	};
+	let protostar = ProtoStar::create_from_desktop_file(
+		client.get_root(),
+		[0.0, 0.0, 0.0],
+		parse_desktop_file(args.desktop_file).map_err(|e| Report::msg(e))?,
+	)?;
 
 	let _root = client.wrap_root(protostar);
 

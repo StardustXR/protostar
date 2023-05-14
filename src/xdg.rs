@@ -18,8 +18,8 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::Mutex;
 use std::{env, fs};
-use walkdir::WalkDir;
 
+use walkdir::WalkDir;
 #[serde_as]
 #[derive(Deserialize, Serialize)]
 struct ImageCache {
@@ -233,19 +233,19 @@ pub struct DesktopFile {
 	pub no_display: bool,
 }
 impl DesktopFile {
-	pub fn get_raw_icons(&self) -> Vec<Icon> {
+	pub fn get_raw_icons(&self, preferred_px_size: u16) -> Vec<Icon> {
 		// Get the name of the icon from the DesktopFile struct
 		let Some(icon_name) = self.icon.as_ref() else { return Vec::new(); };
 		let test_icon_path = self.path.join(Path::new(icon_name));
 		if test_icon_path.exists() {
-			if let Some(icon) = Icon::from_path(test_icon_path, 128) {
+			if let Some(icon) = Icon::from_path(test_icon_path, preferred_px_size) {
 				return vec![icon];
 			}
 		}
 
 		if let Some(cache_icon_path) = IMAGE_CACHE.lock().unwrap().map.get(icon_name) {
 			if cache_icon_path.exists() {
-				if let Some(icon) = Icon::from_path(cache_icon_path.to_owned(), 128) {
+				if let Some(icon) = Icon::from_path(cache_icon_path.to_owned(), preferred_px_size) {
 					return vec![icon];
 				}
 			}
@@ -341,7 +341,7 @@ fn test_get_icon_path() {
 	};
 
 	// Call the get_icon_path() function with a size argument and store the result
-	let icon_paths = desktop_file.get_raw_icons();
+	let icon_paths = desktop_file.get_raw_icons(32);
 	dbg!(&icon_paths);
 
 	// Assert that the get_icon_path() function returns the expected result
