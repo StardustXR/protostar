@@ -44,9 +44,6 @@ fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
 				&ResourceID::new_namespaced("protostar", "hexagon/hexagon"),
 			)?;
 			let model_part = model.model_part("hexagon/hexagon").unwrap();
-			model_part
-				.set_material_parameter("color", MaterialParameter::Color([0.0, 1.0, 1.0, 1.0]))?;
-			model_part.set_material_parameter(
 			model
 				.model_part("Hex")?
 				.set_material_parameter("color", MaterialParameter::Color([0.0, 1.0, 1.0, 1.0]))?;
@@ -113,7 +110,7 @@ impl ProtoStar {
 			None => {}
 		}
 
-		Self::new_raw(
+
 	pub fn create_from_desktop_file(
 		parent: &Spatial,
 		position: impl Into<Vector3<f32>>,
@@ -129,7 +126,8 @@ impl ProtoStar {
 			desktop_file.name.as_deref(),
 			icon,
 			desktop_file.command.ok_or_else(|| eyre!("No command"))?,
-		)
+		);
+
 	}
 	pub fn new_raw(
 		parent: &Spatial,
