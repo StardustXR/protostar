@@ -118,7 +118,7 @@ impl RootHandler for Sirius {
 			app.frame(info);
 		}
 
-		self.grabbable.update(&info);
+		self.grabbable.update(&info).unwrap();
 		self.touch_plane.update();
 		if self.touch_plane.touch_started() {
 			println!("Touch started");

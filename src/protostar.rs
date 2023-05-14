@@ -187,7 +187,7 @@ impl ProtoStar {
 }
 impl RootHandler for ProtoStar {
 	fn frame(&mut self, info: FrameInfo) {
-		self.grabbable.update(&info);
+		self.grabbable.update(&info).unwrap();
 
 		if let Some(grabbable_move) = &mut self.grabbable_move {
 			if !grabbable_move.is_finished() {

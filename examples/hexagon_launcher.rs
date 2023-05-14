@@ -228,6 +228,6 @@ impl Button {
 impl RootHandler for Button {
 	fn frame(&mut self, info: FrameInfo) {
 		self.touch_plane.update();
-		self.grabbable.update(&info);
+		self.grabbable.update(&info).unwrap();
 	}
 }
