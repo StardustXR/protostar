@@ -35,13 +35,10 @@ fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
 				t,
 				&ResourceID::new_namespaced("protostar", "hexagon/hexagon"),
 			)?;
-			model.set_material_parameter(
-				1,
-				"color",
-				MaterialParameter::Color([0.0, 1.0, 1.0, 1.0]),
-			)?;
-			model.set_material_parameter(
-				0,
+			let model_part = model.model_part("hexagon/hexagon").unwrap();
+			model_part
+				.set_material_parameter("color", MaterialParameter::Color([0.0, 1.0, 1.0, 1.0]))?;
+			model_part.set_material_parameter(
 				"diffuse",
 				MaterialParameter::Texture(ResourceID::Direct(icon.path.clone())),
 			)?;
@@ -113,7 +110,7 @@ impl ProtoStar {
 	) -> Result<Self> {
 		let position = position.into();
 		let field = BoxField::create(parent, Transform::default(), [MODEL_SCALE * 2.0; 3])?;
-		let grabbable = Grabbable::new(
+		let grabbable = Grabbable::create(
 			parent,
 			Transform::from_position(position),
 			&field,
