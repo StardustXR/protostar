@@ -1,8 +1,5 @@
 use clap::Parser;
-use color_eyre::{
-	eyre::{bail, Result},
-	Report,
-};
+use color_eyre::{eyre::Result, Report};
 use manifest_dir_macros::directory_relative_path;
 use protostar::{protostar::ProtoStar, xdg::parse_desktop_file};
 use stardust_xr_fusion::client::Client;
@@ -11,21 +8,8 @@ use std::path::PathBuf;
 #[derive(Debug, Parser)]
 #[clap(author, version, about, long_about = None)]
 struct Args {
-	#[clap(short, long, default_value_t = 0.1)]
-	size: f32,
-	#[clap(
-		short,
-		long,
-		conflicts_with = "command",
-		required_unless_present = "command",
-		conflicts_with = "icon",
-		required_unless_present = "icon"
-	)]
-	desktop_file: Option<PathBuf>,
-	#[clap(short, long, conflicts_with = "desktop_file", requires = "command")]
-	icon: Option<PathBuf>,
-	#[clap(short, long, conflicts_with = "desktop_file", requires = "icon")]
-	command: Option<String>,
+	// #[clap(short, long)]
+	desktop_file: PathBuf,
 }
 
 #[tokio::main(flavor = "current_thread")]
