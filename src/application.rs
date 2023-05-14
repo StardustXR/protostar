@@ -39,7 +39,7 @@ impl Application {
 	}
 
 	pub fn icon(&self, preferred_px_size: u16, prefer_3d: bool) -> Option<Icon> {
-		let raw_icons = self.desktop_file.get_raw_icons(preferred_px_size);
+		let raw_icons = self.desktop_file.get_icon(preferred_px_size);
 		let mut icon = raw_icons.iter().max_by_key(|i| i.size).cloned();
 		if prefer_3d {
 			icon = raw_icons

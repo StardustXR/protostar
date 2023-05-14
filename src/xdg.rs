@@ -1,6 +1,6 @@
 use color_eyre::eyre::Result;
+use freedesktop_icons::lookup;
 use lazy_static::lazy_static;
-use linicon;
 use regex::Regex;
 use resvg::render;
 use resvg::tiny_skia::{Pixmap, Transform};
@@ -232,40 +232,43 @@ pub struct DesktopFile {
 	pub icon: Option<String>,
 	pub no_display: bool,
 }
+
+const ICON_SIZES: [u16; 7] = [512, 256, 128, 64, 48, 32, 24];
+
 impl DesktopFile {
-	pub fn get_raw_icons(&self, preferred_px_size: u16) -> Vec<Icon> {
+	pub fn get_icon(&self, preferred_px_size: u16) -> Option<Icon> {
 		// Get the name of the icon from the DesktopFile struct
-		let Some(icon_name) = self.icon.as_ref() else { return Vec::new(); };
+		let Some(icon_name) = self.icon.as_ref() else { return None };
 		let test_icon_path = self.path.join(Path::new(icon_name));
 		if test_icon_path.exists() {
 			if let Some(icon) = Icon::from_path(test_icon_path, preferred_px_size) {
-				return vec![icon];
+				return Some(icon);
 			}
 		}
 
 		if let Some(cache_icon_path) = IMAGE_CACHE.lock().unwrap().map.get(icon_name) {
 			if cache_icon_path.exists() {
 				if let Some(icon) = Icon::from_path(cache_icon_path.to_owned(), preferred_px_size) {
-					return vec![icon];
+					return Some(icon);
 				}
 			}
 		}
 
-		let mut icons_iter = linicon::lookup_icon(icon_name)
-			.use_fallback_themes(false)
-			.peekable();
-
-		if icons_iter.peek().is_none() {
-			//dbg!("No icons found in current theme");
-			icons_iter = linicon::lookup_icon(icon_name).peekable();
+		// TODO: handle preferred_theme
+		if let Some(icon_path) = lookup(icon_name).with_size(preferred_px_size).find() {
+			if let Some(icon) = Icon::from_path(icon_path, preferred_px_size) {
+				return Some(icon);
+			}
 		}
 
-		let sized_png: Vec<Icon> = icons_iter
-			.filter_map(|i| i.ok())
-			.filter(|i| i.icon_type != linicon::IconType::XMP) //TODO: support XMP
-			.map(|i| Icon::from_path(i.path, i.max_size - 2).unwrap())
-			.collect();
-		sized_png
+		for icon_size in ICON_SIZES {
+			if let Some(icon_path) = lookup(icon_name).with_size(icon_size).find() {
+				if let Some(icon) = Icon::from_path(icon_path, preferred_px_size) {
+					return Some(icon);
+				}
+			}
+		}
+		None
 	}
 }
 
@@ -341,17 +344,18 @@ fn test_get_icon_path() {
 	};
 
 	// Call the get_icon_path() function with a size argument and store the result
-	let icon_paths = desktop_file.get_raw_icons(32);
-	dbg!(&icon_paths);
+	let icon = desktop_file.get_icon(32);
+	dbg!(&icon);
 
 	// Assert that the get_icon_path() function returns the expected result
-	assert!(icon_paths.contains(
-		&Icon::from_path(
-			PathBuf::from("/usr/share/icons/hicolor/32x32/apps/krita.png"),
-			32
-		)
-		.unwrap()
-	));
+	assert!(
+		icon.unwrap()
+			== Icon::from_path(
+				PathBuf::from("/usr/share/icons/hicolor/32x32/apps/krita.png"),
+				32
+			)
+			.unwrap()
+	);
 }
 
 pub fn get_image_cache_dir() -> PathBuf {
