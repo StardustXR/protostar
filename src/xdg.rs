@@ -1,5 +1,4 @@
 use color_eyre::eyre::Result;
-use lazy_static::lazy_static;
 use linicon;
 use regex::Regex;
 use resvg::render;
@@ -13,90 +12,33 @@ use std::ffi::OsString;
 use std::fs::create_dir_all;
 use std::fs::File;
 use std::io::{BufRead, BufReader, ErrorKind};
-use std::io::{Read, Write};
+use std::os::unix::fs::symlink;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::Mutex;
 use std::{env, fs};
 use walkdir::WalkDir;
-
-#[serde_as]
-#[derive(Deserialize, Serialize)]
-struct ImageCache {
-	path: PathBuf,
-	#[serde_as(as = "Vec<(_, _)>")]
-	pub map: HashMap<String, PathBuf>,
-}
-
-impl ImageCache {
-	fn new(path: PathBuf) -> Self {
-		if let Ok(mut file) = File::open(&path) {
-			let mut buf = vec![];
-			if file.read_to_end(&mut buf).is_ok() {
-				if let Ok(cache) = serde_json::from_slice(&buf[..]) {
-					return cache;
-				}
-			}
-		}
-
-		//There was no file, or the file failed to load, create a new World.
-		ImageCache {
-			path,
-			map: HashMap::new(),
-		}
-	}
-
-	fn insert(&mut self, k: String, v: PathBuf) {
-		self.map.insert(k, v);
-	}
-
-	fn save(&self) {
-		let mut f = File::create(&self.path).unwrap();
-		let buf = serde_json::to_vec(&self).unwrap();
-		f.write_all(&buf[..]).unwrap();
-	}
-}
-
-lazy_static! {
-	static ref IMAGE_CACHE: Mutex<ImageCache> = Mutex::new(ImageCache::new(
-		get_image_cache_dir().join("imagechache.map")
-	));
-}
-
 fn get_data_dirs() -> Vec<PathBuf> {
 	let xdg_data_dirs_str = std::env::var("XDG_DATA_DIRS").unwrap_or_default();
 
-	let xdg_data_dirs = xdg_data_dirs_str
+	// Append the applications directory to each data directory
+	let app_dirs = xdg_data_dirs
 		.split(":")
-		.filter_map(|dir| PathBuf::from_str(dir).ok());
+		.map(|dir| Path::new(dir).join("applications"));
 
-	let data_home = dirs::home_dir()
-		.unwrap_or(PathBuf::from_str("/usr/share/").expect(
-			"No XDG_DATA_DIR set, no HOME directory found and no /usr/share direcotry found",
-		))
+	// Get the user's local applications directory
+	let local_app_dir = dirs::home_dir()
+		.unwrap()
 		.join(".local")
-		.join("share");
+		.join("share")
+		.join("applications");
 
-	xdg_data_dirs
-		.chain([data_home].into_iter())
-		.filter(|dir| dir.exists() && dir.is_dir())
-		.collect()
-}
-
-fn get_app_dirs() -> Vec<PathBuf> {
-	get_data_dirs()
-		.into_iter()
-		.map(|dir| dir.join("applications"))
-		.filter(|dir| dir.exists() && dir.is_dir())
-		.collect()
-}
-
-pub fn get_desktop_files() -> Vec<PathBuf> {
 	let desktop_extension = OsString::from_str("desktop").unwrap();
+
 	// Get the list of directories to search
-	let app_dirs = get_app_dirs();
 	app_dirs
-		.into_iter()
+		.chain(Some(local_app_dir))
+		.filter(|dir| dir.exists() && dir.is_dir())
 		.flat_map(|dir| {
 			// Follow symlinks and recursively search directories
 			WalkDir::new(dir)
@@ -137,10 +79,6 @@ pub fn parse_desktop_file(path: PathBuf) -> Result<DesktopFile, String> {
 	let mut command = None;
 	let mut categories = Vec::new();
 	let mut icon = None;
-	let mut no_display = false;
-	let mut desktop_entry_found = false;
-
-	let re = Regex::new(r"^\[([^\]]*)\]$").unwrap();
 
 	// Loop through each line of the file
 	for line in reader.lines() {
@@ -154,14 +92,6 @@ pub fn parse_desktop_file(path: PathBuf) -> Result<DesktopFile, String> {
 			continue;
 		}
 
-		if let Some(captures) = re.captures(&line) {
-			let entry = captures.get(1).unwrap();
-			desktop_entry_found = entry.as_str().contains("Desktop Entry");
-		}
-
-		if !desktop_entry_found {
-			continue;
-		}
 		// Split the line into a key-value pair by looking for the first "=" character
 		let parts = line.split_once('=');
 		let (key, value) = match parts {
@@ -181,12 +111,6 @@ pub fn parse_desktop_file(path: PathBuf) -> Result<DesktopFile, String> {
 					.collect()
 			}
 			"Icon" => icon = Some(value.to_string()),
-			"NoDisplay" => {
-				no_display = match value {
-					"true" => true,
-					_ => false,
-				}
-			}
 			_ => (), // Ignore unknown keys
 		}
 	}
@@ -198,7 +122,6 @@ pub fn parse_desktop_file(path: PathBuf) -> Result<DesktopFile, String> {
 		command,
 		categories,
 		icon,
-		no_display,
 	})
 }
 
@@ -230,96 +153,77 @@ pub struct DesktopFile {
 	pub command: Option<String>,
 	pub categories: Vec<String>,
 	pub icon: Option<String>,
-	pub no_display: bool,
 }
 impl DesktopFile {
-	pub fn get_raw_icons(&self) -> Vec<Icon> {
+	pub fn get_raw_icons(&self) -> Vec<RawIconType> {
 		// Get the name of the icon from the DesktopFile struct
 		let Some(icon_name) = self.icon.as_ref() else { return Vec::new(); };
 		let test_icon_path = self.path.join(Path::new(icon_name));
 		if test_icon_path.exists() {
-			if let Some(icon) = Icon::from_path(test_icon_path, 128) {
+			return RawIconType::from_path(test_icon_path)
+				.map(|i| vec![i])
+				.unwrap_or_default();
+		}
+
+		let cache_icon_path = get_image_cache_dir().join(icon_name).canonicalize();
+		if cache_icon_path.is_ok() {
+			if let Some(icon) = Icon::from_path(cache_icon_path.unwrap(), 128) {
 				return vec![icon];
 			}
 		}
 
-		if let Some(cache_icon_path) = IMAGE_CACHE.lock().unwrap().map.get(icon_name) {
-			if cache_icon_path.exists() {
-				if let Some(icon) = Icon::from_path(cache_icon_path.to_owned(), 128) {
-					return vec![icon];
-				}
-			}
-		}
+		// Get the current icon theme from the XDG_ICON_THEME environment variable, or use "hicolor" as the default theme if the variable is not defined
+		let icon_theme = env::var_os("XDG_ICON_THEME").unwrap_or("hicolor".into());
 
-		let mut icons_iter = linicon::lookup_icon(icon_name)
-			.use_fallback_themes(false)
-			.peekable();
+		// Get the XDG_DATA_HOME and XDG_DATA_DIRS environment variables, and split the XDG_DATA_DIRS variable into a list of directories
+		let Some(xdg_data_dirs) = env::var_os("XDG_DATA_DIRS") else { return Vec::new(); };
+		let Ok(binding) = xdg_data_dirs.into_string() else { return Vec::new(); };
+		let xdg_data_dirs = binding.split(":").map(Path::new);
 
-		if icons_iter.peek().is_none() {
-			//dbg!("No icons found in current theme");
-			icons_iter = linicon::lookup_icon(icon_name).peekable();
-		}
-
-		let sized_png: Vec<Icon> = icons_iter
-			.filter_map(|i| i.ok())
-			.filter(|i| i.icon_type != linicon::IconType::XMP) //TODO: support XMP
-			.map(|i| Icon::from_path(i.path, i.max_size - 2).unwrap())
-			.collect();
-		sized_png
+		// Concatenate the XDG_DATA_HOME and XDG_DATA_DIRS directories with the default path for icon themes
+		xdg_data_dirs // XDG_DATA_DIRS directories
+			.flat_map(|dir| {
+				let icons_path = dir.join("icons").join(&icon_theme);
+				ICON_SIZES
+					.iter()
+					.map(|path| icons_path.join(path).join("apps"))
+					.collect::<Vec<_>>()
+			})
+			.filter_map(|dir| {
+				let dir = fs::read_dir(dir).ok()?;
+				Some(
+					dir.filter_map(|e| e.ok())
+						.map(|file| file.path())
+						.filter(|file| file.file_stem() == Some(&icon_name)),
+				)
+			})
+			.flatten()
+			.filter_map(RawIconType::from_path)
+			.collect()
 	}
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Icon {
-	pub icon_type: IconType,
-	pub path: PathBuf,
-	pub size: u16,
+#[derive(Debug, PartialEq, Eq)]
+pub enum RawIconType {
+	Png(PathBuf),
+	Svg(PathBuf),
+	Gltf(PathBuf),
 }
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum IconType {
-	Png,
-	Svg,
-	Gltf,
-}
-impl Icon {
-	pub fn from_path(path: PathBuf, size: u16) -> Option<Icon> {
-		let icon_type = match path.extension().and_then(|ext| ext.to_str()) {
-			Some("png") => IconType::Png,
-			Some("svg") => IconType::Svg,
-			Some("glb") | Some("gltf") => IconType::Gltf,
-			_ => return None,
-		};
-		return Some(Icon {
-			icon_type,
-			path,
-			size,
-		});
+impl RawIconType {
+	pub fn from_path(path: PathBuf) -> Option<RawIconType> {
+		match path.extension().and_then(|ext| ext.to_str()) {
+			Some("png") => Some(RawIconType::Png(path)),
+			Some("svg") => Some(RawIconType::Svg(path)),
+			Some("glb") | Some("gltf") => Some(RawIconType::Gltf(path)),
+			_ => None,
+		}
 	}
 
 	pub fn cached_process(self, size: u16) -> Result<Icon, std::io::Error> {
-		if !IMAGE_CACHE.lock().unwrap().map.contains_key(
-			&self
-				.path
-				.with_extension("")
-				.file_name()
-				.unwrap()
-				.to_str()
-				.unwrap()
-				.to_owned(),
-		) {
-			dbg!("Saving value in the DB");
-			IMAGE_CACHE.lock().unwrap().insert(
-				self.path
-					.with_extension("")
-					.file_name()
-					.unwrap()
-					.to_str()
-					.unwrap()
-					.to_owned(),
-				self.path.clone(),
-			);
-			IMAGE_CACHE.lock().unwrap().save();
+		let new_path =
+			get_image_cache_dir().join(self.path.with_extension("").file_name().unwrap());
+		if !new_path.exists() {
+			_ = symlink(self.path.clone(), new_path);
 		}
 		match self.icon_type {
 			IconType::Svg => Ok(Icon::from_path(get_png_from_svg(self.path, size)?, size).unwrap()),
@@ -337,7 +241,6 @@ fn test_get_icon_path() {
 		command: None,
 		categories: vec![],
 		icon: Some("krita".into()),
-		no_display: false,
 	};
 
 	// Call the get_icon_path() function with a size argument and store the result
@@ -345,15 +248,12 @@ fn test_get_icon_path() {
 	dbg!(&icon_paths);
 
 	// Assert that the get_icon_path() function returns the expected result
-	assert!(icon_paths.contains(
-		&Icon::from_path(
-			PathBuf::from("/usr/share/icons/hicolor/32x32/apps/krita.png"),
-			32
-		)
-		.unwrap()
-	));
+	assert!(icon_paths.contains(&RawIconType::Png(PathBuf::from(
+		"/usr/share/icons/hicolor/16x16/apps/krita.png"
+	))));
 }
 
+#[cached]
 pub fn get_image_cache_dir() -> PathBuf {
 	let cache_dir;
 	if let Ok(xdg_cache_home) = std::env::var("XDG_CACHE_HOME") {
@@ -367,26 +267,26 @@ pub fn get_image_cache_dir() -> PathBuf {
 	return image_cache_dir;
 }
 
-pub fn get_png_from_svg(svg_path: impl AsRef<Path>, size: u16) -> Result<PathBuf, std::io::Error> {
+pub fn render_svg_to_png(
+	cache_dir: impl AsRef<Path>,
+	svg_path: impl AsRef<Path>,
+	size: u32,
+) -> Result<PathBuf, std::io::Error> {
 	let svg_path = fs::canonicalize(svg_path)?;
-	let svg_data = fs::read(svg_path.as_path())?;
-	let tree = Tree::from_data(svg_data.as_slice(), &resvg::usvg::Options::default())
-		.map_err(|_| ErrorKind::InvalidData)?;
-
-	let png_path = get_image_cache_dir().join(format!(
-		"{}-{}.png",
-		svg_path.file_name().unwrap().to_str().unwrap(),
-		svg_data.len()
-	));
-
-	if png_path.exists() {
-		return Ok(png_path);
-	}
-
-	let mut pixmap = Pixmap::new(size.into(), size.into()).unwrap();
+	let tree = Tree::from_data(
+		fs::read(svg_path.as_path())?.as_slice(),
+		&resvg::usvg::Options::default(),
+	)
+	.map_err(|_| ErrorKind::InvalidData)?;
+	create_dir_all(cache_dir.as_ref())?;
+	let png_path = cache_dir
+		.as_ref()
+		.join(svg_path.file_name().unwrap())
+		.with_extension("png");
+	let mut pixmap = Pixmap::new(size, size).unwrap();
 	render(
 		&tree,
-		FitTo::Width(size.into()),
+		FitTo::Width(size),
 		Transform::identity(),
 		pixmap.as_mut(),
 	);
@@ -410,7 +310,7 @@ fn test_render_svg_to_png() {
 	fs::write(&svg_path, test_svg_data).unwrap();
 
 	// Call the function with the test input and output paths and a size of 200
-	let png_path = get_png_from_svg(&svg_path, 200).unwrap();
+	let png_path = render_svg_to_png(".", &svg_path, 200).unwrap();
 	dbg!(&png_path);
 
 	// Check that the output file exists
