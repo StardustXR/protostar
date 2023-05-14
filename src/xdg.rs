@@ -252,6 +252,7 @@ impl DesktopFile {
 					return Some(icon);
 				}
 			}
+			print!("Cache miss")
 		}
 
 		// TODO: handle preferred_theme
@@ -311,7 +312,7 @@ impl Icon {
 				.unwrap()
 				.to_owned(),
 		) {
-			dbg!("Saving value in the DB");
+			print!("Saving in the cache");
 			IMAGE_CACHE.lock().unwrap().insert(
 				self.path
 					.with_extension("")
