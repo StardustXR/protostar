@@ -1,10 +1,9 @@
 use color_eyre::eyre::Result;
-use glam::Quat;
+use glam::{Quat, Vec3};
 use manifest_dir_macros::directory_relative_path;
 use mint::Vector3;
 use protostar::{
 	application::Application,
-	protostar::ProtoStar,
 	xdg::{get_desktop_files, parse_desktop_file, DesktopFile, Icon, IconType},
 };
 use stardust_xr_fusion::{
@@ -83,18 +82,18 @@ impl RootHandler for AppGrid {
 fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
 	return match &icon.icon_type {
 		IconType::Png => {
-			let t = Transform::from_rotation_scale(
-				Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
-				[APP_SIZE * 0.5; 3],
-			);
+			// let t = Transform::from_rotation_scale(
+			// 	Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
+			// 	[1.0; 3],
+			// );
 
 			let model = Model::create(
 				parent,
-				t,
-				&ResourceID::new_namespaced("protostar", "hexagon/hexagon"),
+				Transform::from_rotation(Quat::from_rotation_y(PI)),
+				&ResourceID::new_namespaced("protostar", "cartridge"),
 			)?;
 			model
-				.model_part("Hex")?
+				.model_part("Cartridge")?
 				.set_material_parameter("color", MaterialParameter::Color([0.0, 1.0, 1.0, 1.0]))?;
 			model.model_part("Icon")?.set_material_parameter(
 				"diffuse",
@@ -104,7 +103,7 @@ fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
 		}
 		IconType::Gltf => Ok(Model::create(
 			parent,
-			Transform::from_scale([0.05; 3]),
+			Transform::none(),
 			&ResourceID::new_direct(icon.path.clone())?,
 		)?),
 		_ => panic!("Invalid Icon Type"),
@@ -112,14 +111,12 @@ fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
 }
 
 pub struct App {
+	root: Spatial,
 	application: Application,
-	parent: Spatial,
-	position: Vector3<f32>,
 	grabbable: Grabbable,
 	_field: BoxField,
-	icon: Model,
-	label: Option<Text>,
-	grabbable_move: Option<Tweener<f32, f64, QuartInOut>>,
+	_icon: Model,
+	_label: Option<Text>,
 }
 impl App {
 	pub fn create_from_desktop_file(
@@ -127,13 +124,13 @@ impl App {
 		position: impl Into<Vector3<f32>>,
 		desktop_file: DesktopFile,
 	) -> Result<Self> {
-		let position = position.into();
-		let field = BoxField::create(parent, Transform::default(), [APP_SIZE; 3])?;
+		let root = Spatial::create(parent, Transform::from_position(position), false)?;
+		let field = BoxField::create(&root, Transform::default(), [APP_SIZE; 3])?;
 		let application = Application::create(&parent.client()?, desktop_file)?;
-		let icon = application.icon(128, false);
+		let icon = application.icon(128, true);
 		let grabbable = Grabbable::create(
-			parent,
-			Transform::from_position(position),
+			&root,
+			Transform::identity(),
 			&field,
 			GrabData {
 				max_distance: 0.01,
@@ -148,18 +145,15 @@ impl App {
 			.unwrap_or_else(|| {
 				Ok(Model::create(
 					grabbable.content_parent(),
-					Transform::from_rotation_scale(
-						Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
-						[APP_SIZE * 0.5; 3],
-					),
-					&ResourceID::new_namespaced("protostar", "hexagon/hexagon"),
+					Transform::from_rotation(Quat::from_rotation_y(PI)),
+					&ResourceID::new_namespaced("protostar", "cartridge"),
 				)?)
 			})?;
 
 		let label_style = TextStyle {
-			character_height: APP_SIZE * 2.0,
+			character_height: 0.005,
 			bounds: Some(Bounds {
-				bounds: [1.0; 2].into(),
+				bounds: [0.047013, 0.01].into(),
 				fit: TextFit::Wrap,
 				bounds_align: Alignment::XCenter | Alignment::YCenter,
 			}),
@@ -168,81 +162,68 @@ impl App {
 		};
 		let label = application.name().and_then(|name| {
 			Text::create(
-				&icon,
-				Transform::from_position_rotation(
-					[0.0, 0.1, -(APP_SIZE * 4.0)],
-					Quat::from_rotation_x(PI * 0.5),
-				),
+				&*icon.model_part("Label").ok()?,
+				Transform::none(),
 				name,
 				label_style,
 			)
 			.ok()
 		});
 		Ok(App {
-			parent: parent.alias(),
-			position,
+			root,
 			grabbable,
 			_field: field,
-			label,
+			_label: label,
 			application,
-			icon,
-			grabbable_move: None,
+			_icon: icon,
 		})
 	}
 	pub fn content_parent(&self) -> &Spatial {
 		self.grabbable.content_parent()
+	}
+
+	fn bring_back(&self) {
+		self.grabbable
+			.content_parent()
+			.set_transform(Some(&self.root), Transform::identity())
+			.unwrap();
 	}
 }
 impl RootHandler for App {
 	fn frame(&mut self, info: FrameInfo) {
 		let _ = self.grabbable.update(&info);
 
-		if let Some(grabbable_move) = &mut self.grabbable_move {
-			if !grabbable_move.is_finished() {
-				let scale = grabbable_move.move_by(info.delta);
-				self.grabbable
-					.content_parent()
-					.set_position(
-						Some(&self.parent),
-						[
-							self.position.x * scale,
-							self.position.y * scale,
-							self.position.z * scale,
-						],
-					)
-					.unwrap();
-			} else {
-				if grabbable_move.final_value() == 0.0001 {
-					self.icon.set_enabled(false).unwrap();
-					self.label.as_ref().map(|l| l.set_enabled(false).unwrap());
-				}
-				self.grabbable_move = None;
-			}
-		} else if self.grabbable.valid() && self.grabbable.grab_action().actor_stopped() {
+		if self.grabbable.grab_action().actor_stopped() {
 			self.grabbable.cancel_angular_velocity();
 			self.grabbable.cancel_linear_velocity();
-			self.grabbable
-				.content_parent()
-				.set_position(Some(&self.parent), self.position)
-				.unwrap();
 
+			if !self.grabbable.valid() {
+				self.bring_back();
+				return;
+			}
 			let Ok(distance_future) = self.grabbable
 				.content_parent()
-				.get_position_rotation_scale(&self.parent)
+				.get_position_rotation_scale(&self.root)
 				 else {return};
 
 			let application = self.application.clone();
 			let space = self.content_parent().alias();
+			let root = self.root.alias();
 
-			//TODO: split the executable string for the args
 			tokio::task::spawn(async move {
-				let distance_vector = distance_future.await.ok().unwrap().0;
-				let distance = ((distance_vector.x.powi(2) + distance_vector.y.powi(2)).sqrt()
-					+ distance_vector.z.powi(2))
-				.sqrt();
-				if dbg!(distance) > ACTIVATION_DISTANCE {
+				let Ok((distance, _rotation, _scale)) = distance_future.await else { space
+					.set_transform(Some(&root), Transform::identity())
+					.unwrap(); return};
+				let distance = Vec3::from(distance).length_squared();
+				dbg!(distance.sqrt());
+				dbg!(ACTIVATION_DISTANCE);
+				if distance > ACTIVATION_DISTANCE.powi(2) {
 					let _ = application.launch(&space);
 				}
+
+				space
+					.set_transform(Some(&root), Transform::identity())
+					.unwrap();
 			});
 		}
 	}
