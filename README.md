@@ -1,15 +1,11 @@
 # protostar
 
-Prototype application launcher
+Prototype application launcher for StardustXR
 
-TODO:
+Protostar provides an easy to use crate to write applications launchers. See the [examples](examples) to learn more!
 
-1) ~~Make it work with all icons (should be done)~~
+# TODO:
 
-2. ~~If the right sized png exists, then use that, otherwise rasterize it (a bit janky but it works)~~
-3. ~~Use XDG_CACHE_DIR to rasterize svgs (done)~~
-4. Make sure it's using the current icon theme
-5. Design a better app launcher ui
-
-TO RUN DOCK
-cargo run --example sirius
+1. Implement our own (more reliable) way to get icons
+2. Untangle the code (eg: make it so that the user can decide sizes, models, etc... ) 
+3. Implement [configuration files](https://docs.rs/confy/latest/confy/) in the examples
