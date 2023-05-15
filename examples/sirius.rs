@@ -1,6 +1,6 @@
 use clap::{self, Parser};
 use color_eyre::eyre::Result;
-use glam::{Quat, Vec3};
+use glam::Quat;
 use manifest_dir_macros::directory_relative_path;
 use mint::Vector3;
 use protostar::{
@@ -12,7 +12,6 @@ use stardust_xr_fusion::{
 	core::values::Transform,
 	drawable::{Alignment, Bounds, MaterialParameter, Model, ResourceID, Text, TextFit, TextStyle},
 	fields::BoxField,
-	input::{InputData, InputDataType},
 	node::NodeError,
 	node::NodeType,
 	spatial::Spatial,
@@ -60,15 +59,12 @@ async fn main() -> Result<()> {
 struct Sirius {
 	touch_plane: TouchPlane,
 	model: Model,
-	root: Spatial,
 	clients: Vec<App>,
 	visibility: bool,
 	grabbable: Grabbable,
 }
 impl Sirius {
 	fn new(client: &Client, args: Args) -> Result<Self, NodeError> {
-		let mut client_list: Vec<(Option<&str>, String)> = Vec::new();
-
 		let root = Spatial::create(client.get_root(), Transform::default(), false).unwrap();
 
 		let field = BoxField::create(&root, Transform::default(), [0.1; 3]).unwrap();
@@ -85,7 +81,7 @@ impl Sirius {
 
 		let walkdir = WalkDir::new(args.apps_directory.canonicalize().unwrap());
 
-		let mut clients: Vec<App> = walkdir
+		let clients: Vec<App> = walkdir
 			.into_iter()
 			.filter_map(|path| path.ok())
 			.map(|entry| entry.into_path())
@@ -115,7 +111,6 @@ impl Sirius {
 		Ok(Sirius {
 			touch_plane,
 			model,
-			root,
 			clients,
 			visibility,
 			grabbable,
@@ -198,14 +193,6 @@ impl RootHandler for Sirius {
 				)
 				.unwrap();
 		}
-	}
-}
-
-fn position(data: &InputData) -> Vec3 {
-	match &data.input {
-		InputDataType::Hand(h) => h.palm.position.into(),
-		InputDataType::Pointer(w) => w.deepest_point.into(),
-		InputDataType::Tip(t) => t.origin.into(),
 	}
 }
 
