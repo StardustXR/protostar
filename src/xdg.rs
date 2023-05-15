@@ -65,20 +65,11 @@ lazy_static! {
 
 fn get_data_dirs() -> Vec<PathBuf> {
 	let xdg_data_dirs_str = std::env::var("XDG_DATA_DIRS").unwrap_or_default();
-
-	let xdg_data_dirs = xdg_data_dirs_str
+	xdg_data_dirs_str
 		.split(":")
-		.filter_map(|dir| PathBuf::from_str(dir).ok());
-
-	let data_home = dirs::home_dir()
-		.unwrap_or(PathBuf::from_str("/usr/share/").expect(
-			"No XDG_DATA_DIR set, no HOME directory found and no /usr/share direcotry found",
-		))
-		.join(".local")
-		.join("share");
-
-	xdg_data_dirs
-		.chain([data_home].into_iter())
+		.filter_map(|dir| PathBuf::from_str(dir).ok())
+		.chain(dirs::home_dir().into_iter().map(|d| d.join(".local/share")))
+		.chain(PathBuf::from_str("/usr/share").into_iter())
 		.filter(|dir| dir.exists() && dir.is_dir())
 		.collect()
 }
@@ -255,7 +246,11 @@ impl DesktopFile {
 			print!("Cache miss")
 		}
 
-		if let Some(icon_path) = lookup(icon_name).with_size(preferred_px_size).with_cache().find() {
+		if let Some(icon_path) = lookup(icon_name)
+			.with_size(preferred_px_size)
+			.with_cache()
+			.find()
+		{
 			if let Some(icon) = Icon::from_path(icon_path, preferred_px_size) {
 				return Some(icon);
 			}
