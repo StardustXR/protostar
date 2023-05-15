@@ -255,15 +255,14 @@ impl DesktopFile {
 			print!("Cache miss")
 		}
 
-		// TODO: handle preferred_theme
-		if let Some(icon_path) = lookup(icon_name).with_size(preferred_px_size).find() {
+		if let Some(icon_path) = lookup(icon_name).with_size(preferred_px_size).with_cache().find() {
 			if let Some(icon) = Icon::from_path(icon_path, preferred_px_size) {
 				return Some(icon);
 			}
 		}
 
 		for icon_size in ICON_SIZES {
-			if let Some(icon_path) = lookup(icon_name).with_size(icon_size).find() {
+			if let Some(icon_path) = lookup(icon_name).with_size(icon_size).with_cache().find() {
 				if let Some(icon) = Icon::from_path(icon_path, preferred_px_size) {
 					return Some(icon);
 				}
