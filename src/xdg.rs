@@ -381,9 +381,10 @@ pub fn get_png_from_svg(svg_path: impl AsRef<Path>, size: u16) -> Result<PathBuf
 		.map_err(|_| ErrorKind::InvalidData)?;
 
 	let png_path = get_image_cache_dir().join(format!(
-		"{}-{}.png",
+		"{}-{}-{}.png",
 		svg_path.file_name().unwrap().to_str().unwrap(),
-		svg_data.len()
+		svg_data.len(),
+		size
 	));
 
 	if png_path.exists() {
