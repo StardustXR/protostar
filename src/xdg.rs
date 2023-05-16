@@ -251,8 +251,14 @@ impl DesktopFile {
 			print!("Cache miss")
 		}
 
+		let preferred_theme = match linicon_theme::get_icon_theme() {
+			Some(t) => t,
+			None => "hicolor".to_owned(),
+		};
+
 		if let Some(icon_path) = lookup(icon_name)
 			.with_size(preferred_px_size)
+			.with_theme(preferred_theme.as_str())
 			.with_cache()
 			.find()
 		{
@@ -262,7 +268,12 @@ impl DesktopFile {
 		}
 
 		for icon_size in ICON_SIZES {
-			if let Some(icon_path) = lookup(icon_name).with_size(icon_size).with_cache().find() {
+			if let Some(icon_path) = lookup(icon_name)
+				.with_size(icon_size)
+				.with_theme(preferred_theme.as_str())
+				.with_cache()
+				.find()
+			{
 				if let Some(icon) = Icon::from_path(icon_path, preferred_px_size) {
 					return Some(icon);
 				}
