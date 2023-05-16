@@ -25,7 +25,7 @@ use walkdir::WalkDir;
 struct ImageCache {
 	path: PathBuf,
 	#[serde_as(as = "Vec<(_, _)>")]
-	pub map: HashMap<String, PathBuf>,
+	pub map: HashMap<(String, u16), PathBuf>,
 }
 
 impl ImageCache {
@@ -46,7 +46,7 @@ impl ImageCache {
 		}
 	}
 
-	fn insert(&mut self, k: String, v: PathBuf) {
+	fn insert(&mut self, k: (String, u16), v: PathBuf) {
 		self.map.insert(k, v);
 	}
 
@@ -237,7 +237,12 @@ impl DesktopFile {
 			}
 		}
 
-		if let Some(cache_icon_path) = IMAGE_CACHE.lock().unwrap().map.get(icon_name) {
+		if let Some(cache_icon_path) = IMAGE_CACHE
+			.lock()
+			.unwrap()
+			.map
+			.get(&(icon_name.clone(), preferred_px_size))
+		{
 			if cache_icon_path.exists() {
 				if let Some(icon) = Icon::from_path(cache_icon_path.to_owned(), preferred_px_size) {
 					return Some(icon);
@@ -296,25 +301,28 @@ impl Icon {
 	}
 
 	pub fn cached_process(self, size: u16) -> Result<Icon, std::io::Error> {
-		if !IMAGE_CACHE.lock().unwrap().map.contains_key(
-			&self
-				.path
+		if !IMAGE_CACHE.lock().unwrap().map.contains_key(&(
+			self.path
 				.with_extension("")
 				.file_name()
 				.unwrap()
 				.to_str()
 				.unwrap()
 				.to_owned(),
-		) {
+			size,
+		)) {
 			print!("Saving in the cache");
 			IMAGE_CACHE.lock().unwrap().insert(
-				self.path
-					.with_extension("")
-					.file_name()
-					.unwrap()
-					.to_str()
-					.unwrap()
-					.to_owned(),
+				(
+					self.path
+						.with_extension("")
+						.file_name()
+						.unwrap()
+						.to_str()
+						.unwrap()
+						.to_owned(),
+					size,
+				),
 				self.path.clone(),
 			);
 			IMAGE_CACHE.lock().unwrap().save();
