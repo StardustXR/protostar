@@ -74,8 +74,11 @@ impl Application {
 			}
 
 			std::env::set_var("STARDUST_STARTUP_TOKEN", startup_token);
+
+			// Strip/ignore field codes https://specifications.freedesktop.org/desktop-entry-spec/latest/ar01s07.html
 			let re = Regex::new(r"%[fFuUdDnNickvm]").unwrap();
 			let exec = re.replace_all(&executable, "");
+
 			unsafe {
 				Command::new("sh")
 					.arg("-c")

@@ -3,7 +3,7 @@ use crate::{
 	xdg::{DesktopFile, Icon, IconType},
 };
 use color_eyre::eyre::Result;
-use glam::Quat;
+use glam::{Quat, Vec3};
 use mint::Vector3;
 use stardust_xr_fusion::{
 	client::{FrameInfo, RootHandler},
@@ -138,19 +138,6 @@ impl ProtoStar {
 	pub fn content_parent(&self) -> &Spatial {
 		self.grabbable.content_parent()
 	}
-	pub fn toggle(&mut self) {
-		self.grabbable.set_enabled(!self.currently_shown).unwrap();
-		if self.currently_shown {
-			self.grabbable_move = Some(Tweener::quart_in_out(1.0, 0.0001, 0.25)); //TODO make the scale a parameter
-		} else {
-			self.icon.set_enabled(true).unwrap();
-			if let Some(label) = self.label.as_ref() {
-				label.set_enabled(true).unwrap()
-			}
-			self.grabbable_move = Some(Tweener::quart_in_out(0.0001, 1.0, 0.25));
-		}
-		self.currently_shown = !self.currently_shown;
-	}
 }
 impl RootHandler for ProtoStar {
 	fn frame(&mut self, info: FrameInfo) {
@@ -240,10 +227,9 @@ impl RootHandler for ProtoStar {
 			//TODO: split the executable string for the args
 			tokio::task::spawn(async move {
 				let distance_vector = distance_future.await.ok().unwrap().0;
-				let distance = ((distance_vector.x.powi(2) + distance_vector.y.powi(2)).sqrt()
-					+ distance_vector.z.powi(2))
-				.sqrt();
-				if dbg!(distance) > ACTIVATION_DISTANCE {
+				let distance = Vec3::from(distance_vector).length_squared();
+
+				if distance > ACTIVATION_DISTANCE {
 					let _ = application.launch(&space);
 				}
 			});

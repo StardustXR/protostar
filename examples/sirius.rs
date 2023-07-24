@@ -1,6 +1,6 @@
 use clap::{self, Parser};
 use color_eyre::eyre::Result;
-use glam::Quat;
+use glam::{Quat, Vec3};
 use manifest_dir_macros::directory_relative_path;
 use mint::Vector3;
 use protostar::{
@@ -416,10 +416,9 @@ impl RootHandler for App {
 			//TODO: split the executable string for the args
 			tokio::task::spawn(async move {
 				let distance_vector = distance_future.await.ok().unwrap().0;
-				let distance = ((distance_vector.x.powi(2) + distance_vector.y.powi(2)).sqrt()
-					+ distance_vector.z.powi(2))
-				.sqrt();
-				if dbg!(distance) > ACTIVATION_DISTANCE {
+				let distance = Vec3::from(distance_vector).length_squared();
+
+				if distance > ACTIVATION_DISTANCE {
 					let _ = application.launch(&space);
 				}
 			});

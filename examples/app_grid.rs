@@ -214,8 +214,7 @@ impl RootHandler for App {
 					.set_transform(Some(&root), Transform::identity())
 					.unwrap(); return};
 				let distance = Vec3::from(distance).length_squared();
-				dbg!(distance.sqrt());
-				dbg!(ACTIVATION_DISTANCE);
+
 				if distance > ACTIVATION_DISTANCE.powi(2) {
 					let _ = application.launch(&space);
 				}
