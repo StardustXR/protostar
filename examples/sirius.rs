@@ -155,7 +155,7 @@ impl RootHandler for Sirius {
 				false => {
 					for star in &self.clients {
 						star.content_parent()
-							.set_position(Some(self.grabbable.content_parent()), [0.0, 0.0, 0.0])
+							.set_position(Some(self.grabbable.content_parent()), [0.0; 3])
 							.ok();
 					}
 				}
@@ -337,14 +337,7 @@ impl RootHandler for App {
 				let scale = grabbable_move.move_by(info.delta);
 				self.grabbable
 					.content_parent()
-					.set_position(
-						Some(&self.parent),
-						[
-							self.position.x * scale,
-							self.position.y * scale,
-							self.position.z * scale,
-						],
-					)
+					.set_position(Some(&self.parent), Vec3::from(self.position) * scale)
 					.unwrap();
 			} else {
 				if grabbable_move.final_value() == 0.0001 {

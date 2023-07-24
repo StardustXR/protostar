@@ -22,7 +22,12 @@ use tween::{QuartInOut, Tweener};
 
 const APP_SIZE: f32 = 0.06;
 const PADDING: f32 = 0.005;
+const MODEL_SCALE: f32 = 0.03;
 const ACTIVATION_DISTANCE: f32 = 0.5;
+
+const CYAN: [f32; 4] = [0.0, 1.0, 1.0, 1.0];
+const BTN_SELECTED_COLOR: [f32; 4] = [0.0, 1.0, 0.0, 1.0];
+const BTN_COLOR: [f32; 4] = [1.0, 1.0, 0.0, 1.0];
 
 #[derive(Clone)]
 struct Hex {
@@ -132,23 +137,21 @@ impl RootHandler for AppHexGrid {
 	fn frame(&mut self, info: FrameInfo) {
 		self.button.frame(info);
 		if self.button.touch_plane.touch_started() {
-			let color = [0.0, 1.0, 0.0, 1.0];
 			self.button
 				.model
 				.model_part("Hex")
 				.unwrap()
-				.set_material_parameter("color", MaterialParameter::Color(color))
+				.set_material_parameter("color", MaterialParameter::Color(BTN_SELECTED_COLOR))
 				.unwrap();
 			for app in &mut self.apps {
 				app.toggle();
 			}
 		} else if self.button.touch_plane.touch_stopped() {
-			let color = [0.0, 0.0, 1.0, 1.0];
 			self.button
 				.model
 				.model_part("Hex")
 				.unwrap()
-				.set_material_parameter("color", MaterialParameter::Color(color))
+				.set_material_parameter("color", MaterialParameter::Color(BTN_COLOR))
 				.unwrap();
 		}
 		for app in &mut self.apps {
@@ -188,13 +191,13 @@ impl Button {
 			grabbable.content_parent(),
 			Transform::from_rotation_scale(
 				Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
-				[0.03, 0.03, 0.03],
+				[MODEL_SCALE; 3],
 			),
 			&ResourceID::new_namespaced("protostar", "hexagon/hexagon"),
 		)?;
 		model
 			.model_part("Hex")?
-			.set_material_parameter("color", MaterialParameter::Color([0.0, 0.0, 1.0, 1.0]))?;
+			.set_material_parameter("color", MaterialParameter::Color(BTN_COLOR))?;
 		Ok(Button {
 			touch_plane,
 			grabbable,
@@ -222,7 +225,7 @@ fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
 		IconType::Png => {
 			let t = Transform::from_rotation_scale(
 				Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
-				[APP_SIZE * 0.5; 3],
+				[APP_SIZE / 2.0; 3],
 			);
 
 			let model = Model::create(
@@ -232,7 +235,7 @@ fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
 			)?;
 			model
 				.model_part("Hex")?
-				.set_material_parameter("color", MaterialParameter::Color([0.0, 1.0, 1.0, 1.0]))?;
+				.set_material_parameter("color", MaterialParameter::Color(CYAN))?;
 			model.model_part("Icon")?.set_material_parameter(
 				"diffuse",
 				MaterialParameter::Texture(ResourceID::Direct(icon.path.clone())),
@@ -358,14 +361,7 @@ impl RootHandler for App {
 				let scale = grabbable_move.move_by(info.delta);
 				self.grabbable
 					.content_parent()
-					.set_position(
-						Some(&self.parent),
-						[
-							self.position.x * scale,
-							self.position.y * scale,
-							self.position.z * scale,
-						],
-					)
+					.set_position(Some(&self.parent), Vec3::from(self.position) * scale)
 					.unwrap();
 			} else {
 				if grabbable_move.final_value() == 0.0001 {

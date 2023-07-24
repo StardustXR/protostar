@@ -77,7 +77,7 @@ impl Application {
 
 			// Strip/ignore field codes https://specifications.freedesktop.org/desktop-entry-spec/latest/ar01s07.html
 			let re = Regex::new(r"%[fFuUdDnNickvm]").unwrap();
-			let exec = re.replace_all(&executable, "");
+			let exec: std::borrow::Cow<'_, str> = re.replace_all(&executable, "");
 
 			unsafe {
 				Command::new("sh")
