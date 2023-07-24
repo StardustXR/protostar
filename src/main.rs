@@ -22,7 +22,7 @@ async fn main() -> Result<()> {
 	let protostar = ProtoStar::create_from_desktop_file(
 		client.get_root(),
 		[0.0, 0.0, 0.0],
-		parse_desktop_file(args.desktop_file).map_err(|e| Report::msg(e))?,
+		parse_desktop_file(args.desktop_file).map_err(Report::msg)?,
 	)?;
 
 	let _root = client.wrap_root(protostar);

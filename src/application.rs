@@ -44,10 +44,7 @@ impl Application {
 		if prefer_3d {
 			icon = raw_icons
 				.into_iter()
-				.find(|i| match i.icon_type {
-					IconType::Gltf => true,
-					_ => false,
-				})
+				.find(|i| i.icon_type == IconType::Gltf)
 				.or(icon);
 		}
 

@@ -218,7 +218,7 @@ impl RootHandler for Button {
 // Model handling
 
 fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
-	return match &icon.icon_type {
+	match &icon.icon_type {
 		IconType::Png => {
 			let t = Transform::from_rotation_scale(
 				Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
@@ -245,7 +245,7 @@ fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
 			&ResourceID::new_direct(icon.path.clone())?,
 		)?),
 		_ => panic!("Invalid Icon Type"),
-	};
+	}
 }
 
 pub struct App {
@@ -341,7 +341,9 @@ impl App {
 			self.grabbable_move = Some(Tweener::quart_in_out(1.0, 0.0001, 0.25)); //TODO make the scale a parameter
 		} else {
 			self.icon.set_enabled(true).unwrap();
-			self.label.as_ref().map(|l| l.set_enabled(true).unwrap());
+			if let Some(label) = self.label.as_ref() {
+				label.set_enabled(true).unwrap()
+			}
 			self.grabbable_move = Some(Tweener::quart_in_out(0.0001, 1.0, 0.25));
 		}
 		self.currently_shown = !self.currently_shown;
@@ -368,7 +370,9 @@ impl RootHandler for App {
 			} else {
 				if grabbable_move.final_value() == 0.0001 {
 					self.icon.set_enabled(false).unwrap();
-					self.label.as_ref().map(|l| l.set_enabled(false).unwrap());
+					if let Some(label) = self.label.as_ref() {
+						label.set_enabled(false).unwrap()
+					}
 				}
 				self.grabbable_move = None;
 			}

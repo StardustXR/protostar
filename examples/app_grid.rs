@@ -17,7 +17,6 @@ use stardust_xr_fusion::{
 use stardust_xr_molecules::{GrabData, Grabbable};
 use std::f32::consts::PI;
 
-
 const APP_LIMIT: usize = 300;
 const APP_SIZE: f32 = 0.05;
 const GRID_PADDING: f32 = 0.01;
@@ -80,7 +79,7 @@ impl RootHandler for AppGrid {
 }
 
 fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
-	return match &icon.icon_type {
+	match &icon.icon_type {
 		IconType::Png => {
 			// let t = Transform::from_rotation_scale(
 			// 	Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
@@ -107,7 +106,7 @@ fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
 			&ResourceID::new_direct(icon.path.clone())?,
 		)?),
 		_ => panic!("Invalid Icon Type"),
-	};
+	}
 }
 
 pub struct App {

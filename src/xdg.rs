@@ -64,12 +64,12 @@ lazy_static! {
 }
 
 fn get_data_dirs() -> Vec<PathBuf> {
-	let xdg_data_dirs_str = std::env::var("XDG_DATA_DIRS").unwrap_or_default();
-	xdg_data_dirs_str
-		.split(":")
+	std::env::var("XDG_DATA_DIRS") // parse XDG_DATA_DIRS
+		.unwrap_or_default()
+		.split(':')
 		.filter_map(|dir| PathBuf::from_str(dir).ok())
-		.chain(dirs::home_dir().into_iter().map(|d| d.join(".local/share")))
-		.chain(PathBuf::from_str("/usr/share").into_iter())
+		.chain(dirs::home_dir().into_iter().map(|d| d.join(".local/share"))) // $HOME/.local/share
+		.chain(PathBuf::from_str("/usr/share").into_iter()) // /usr/share
 		.filter(|dir| dir.exists() && dir.is_dir())
 		.collect()
 }
@@ -172,12 +172,7 @@ pub fn parse_desktop_file(path: PathBuf) -> Result<DesktopFile, String> {
 					.collect()
 			}
 			"Icon" => icon = Some(value.to_string()),
-			"NoDisplay" => {
-				no_display = match value {
-					"true" => true,
-					_ => false,
-				}
-			}
+			"NoDisplay" => no_display = value == "true",
 			_ => (), // Ignore unknown keys
 		}
 	}
@@ -304,11 +299,11 @@ impl Icon {
 			Some("glb") | Some("gltf") => IconType::Gltf,
 			_ => return None,
 		};
-		return Some(Icon {
+		Some(Icon {
 			icon_type,
 			path,
 			size,
-		});
+		})
 	}
 
 	pub fn cached_process(self, size: u16) -> Result<Icon, std::io::Error> {
@@ -382,7 +377,7 @@ pub fn get_image_cache_dir() -> PathBuf {
 	}
 	let image_cache_dir = cache_dir.join("protostar_icon_cache");
 	create_dir_all(&image_cache_dir).expect("Could not create image cache directory");
-	return image_cache_dir;
+	image_cache_dir
 }
 
 pub fn get_png_from_svg(svg_path: impl AsRef<Path>, size: u16) -> Result<PathBuf, std::io::Error> {
