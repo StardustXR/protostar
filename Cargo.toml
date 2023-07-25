@@ -13,6 +13,7 @@ ez-pixmap = "0.2.2"
 freedesktop-icons-greedy = "0.2.5"
 glam = { version = "0.24.0", features = ["mint"] }
 image = "0.24.5"
+itertools = "0.11.0"
 lazy_static = "1.4.0"
 linicon-theme = "1.2.0"
 manifest-dir-macros = "0.1.16"

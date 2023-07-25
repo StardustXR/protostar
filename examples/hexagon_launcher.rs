@@ -98,7 +98,6 @@ impl AppHexGrid {
 	fn new(client: &Client) -> Self {
 		let button = Button::new(client).unwrap();
 		let mut desktop_files: Vec<DesktopFile> = get_desktop_files()
-			.into_iter()
 			.filter_map(|d| parse_desktop_file(d).ok())
 			.filter(|d| !d.no_display)
 			.collect();

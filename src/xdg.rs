@@ -1,5 +1,6 @@
 use color_eyre::eyre::Result;
 use freedesktop_icons_greedy::lookup;
+use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
 use resvg::render;
@@ -70,7 +71,9 @@ fn get_data_dirs() -> Vec<PathBuf> {
 		.filter_map(|dir| PathBuf::from_str(dir).ok())
 		.chain(dirs::home_dir().into_iter().map(|d| d.join(".local/share"))) // $HOME/.local/share
 		.chain(PathBuf::from_str("/usr/share").into_iter()) // /usr/share
+		.chain(PathBuf::from_str("/usr/local/share").into_iter()) // /usr/local/share
 		.filter(|dir| dir.exists() && dir.is_dir())
+		.unique()
 		.collect()
 }
 
@@ -82,11 +85,9 @@ fn get_app_dirs() -> Vec<PathBuf> {
 		.collect()
 }
 
-pub fn get_desktop_files() -> Vec<PathBuf> {
-	let desktop_extension = OsString::from_str("desktop").unwrap();
+pub fn get_desktop_files() -> impl Iterator<Item = PathBuf> {
 	// Get the list of directories to search
-	let app_dirs = get_app_dirs();
-	app_dirs
+	get_app_dirs()
 		.into_iter()
 		.flat_map(|dir| {
 			// Follow symlinks and recursively search directories
@@ -97,17 +98,14 @@ pub fn get_desktop_files() -> Vec<PathBuf> {
 				.filter(|entry| entry.file_type().is_file())
 				.map(|entry| entry.path().to_path_buf())
 		})
-		.filter(|path| path.extension() == Some(&desktop_extension))
-		.collect::<Vec<PathBuf>>()
+		.filter(|path| path.extension() == Some(&OsString::from_str("desktop").unwrap()))
 }
 
 #[test]
 fn test_get_desktop_files() {
-	let desktop_files = get_desktop_files();
-	dbg!(&desktop_files);
-	assert!(desktop_files
-		.iter()
-		.any(|file| file.ends_with("gimp.desktop")));
+	let mut desktop_files = get_desktop_files();
+	assert!(desktop_files.any(|file| file.ends_with("gimp.desktop")));
+	dbg!(desktop_files.collect::<Vec<PathBuf>>());
 }
 
 pub fn parse_desktop_file(path: PathBuf) -> Result<DesktopFile, String> {
@@ -306,29 +304,25 @@ impl Icon {
 	}
 
 	pub fn cached_process(self, size: u16) -> Result<Icon, std::io::Error> {
-		if !IMAGE_CACHE.lock().unwrap().map.contains_key(&(
-			self.path
-				.with_extension("")
-				.file_name()
+		let image_name = self
+			.path
+			.with_extension("")
+			.file_name()
+			.unwrap()
+			.to_str()
+			.unwrap()
+			.to_owned();
+
+		if !IMAGE_CACHE
+			.lock()
+			.unwrap()
+			.map
+			.contains_key(&(image_name.clone(), size))
+		{
+			IMAGE_CACHE
+				.lock()
 				.unwrap()
-				.to_str()
-				.unwrap()
-				.to_owned(),
-			size,
-		)) {
-			IMAGE_CACHE.lock().unwrap().insert(
-				(
-					self.path
-						.with_extension("")
-						.file_name()
-						.unwrap()
-						.to_str()
-						.unwrap()
-						.to_owned(),
-					size,
-				),
-				self.path.clone(),
-			);
+				.insert((image_name, size), self.path.clone());
 			IMAGE_CACHE.lock().unwrap().save();
 		}
 		match self.icon_type {
