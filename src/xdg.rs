@@ -1,5 +1,5 @@
 use color_eyre::eyre::Result;
-use freedesktop_icons::lookup;
+use freedesktop_icons_greedy::lookup;
 use lazy_static::lazy_static;
 use regex::Regex;
 use resvg::render;
@@ -243,7 +243,6 @@ impl DesktopFile {
 					return Some(icon);
 				}
 			}
-			print!("Cache miss")
 		}
 
 		let preferred_theme = match linicon_theme::get_icon_theme() {
@@ -254,7 +253,7 @@ impl DesktopFile {
 		if let Some(icon_path) = lookup(icon_name)
 			.with_size(preferred_px_size)
 			.with_theme(preferred_theme.as_str())
-			.with_cache()
+			.with_greed()
 			.find()
 		{
 			if let Some(icon) = Icon::from_path(icon_path, preferred_px_size) {
@@ -266,7 +265,7 @@ impl DesktopFile {
 			if let Some(icon_path) = lookup(icon_name)
 				.with_size(icon_size)
 				.with_theme(preferred_theme.as_str())
-				.with_cache()
+				.with_greed()
 				.find()
 			{
 				if let Some(icon) = Icon::from_path(icon_path, preferred_px_size) {
@@ -317,7 +316,6 @@ impl Icon {
 				.to_owned(),
 			size,
 		)) {
-			print!("Saving in the cache");
 			IMAGE_CACHE.lock().unwrap().insert(
 				(
 					self.path
