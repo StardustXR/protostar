@@ -1,0 +1,23 @@
+[package]
+name = "app_grid"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1.32.0", features = ["rt", "tokio-macros", "sync"] }
+protostar = { path = "../protostar" }
+color-eyre = "0.6.2"
+clap = "4.4.6"
+manifest-dir-macros = "0.1.18"
+glam = "0.24.2"
+mint = "0.5.9"
+tween = "2.0.1"
+tracing-subscriber = "0.3.17"
+
+[dependencies.stardust-xr-fusion]
+git = "https://github.com/StardustXR/core.git"
+# path = "../../core/fusion"
+
+[dependencies.stardust-xr-molecules]
+git = "https://github.com/StardustXR/molecules.git"
+# path = "../../molecules"

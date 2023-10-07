@@ -1,14 +1,16 @@
-use clap::{self, Parser};
+pub mod hex;
+
 use color_eyre::eyre::Result;
 use glam::{Quat, Vec3};
+use hex::{HEX_CENTER, HEX_DIRECTION_VECTORS};
 use manifest_dir_macros::directory_relative_path;
 use mint::Vector3;
 use protostar::{
 	application::Application,
-	xdg::{parse_desktop_file, DesktopFile, Icon, IconType},
+	xdg::{get_desktop_files, parse_desktop_file, DesktopFile, Icon, IconType},
 };
 use stardust_xr_fusion::{
-	client::{Client, FrameInfo, RootHandler},
+	client::{Client, ClientState, FrameInfo, RootHandler},
 	core::values::Transform,
 	drawable::{Alignment, Bounds, MaterialParameter, Model, ResourceID, Text, TextFit, TextStyle},
 	fields::BoxField,
@@ -16,192 +18,175 @@ use stardust_xr_fusion::{
 	node::NodeType,
 	spatial::Spatial,
 };
-use stardust_xr_molecules::{touch_plane::TouchPlane, GrabData, Grabbable};
-use std::{f32::consts::PI, path::PathBuf};
-
+use stardust_xr_molecules::{touch_plane::TouchPlane, Grabbable, GrabbableSettings};
+use std::f32::consts::PI;
 use tween::{QuartInOut, Tweener};
-use walkdir::WalkDir;
 
 const APP_SIZE: f32 = 0.06;
+const PADDING: f32 = 0.005;
+const MODEL_SCALE: f32 = 0.03;
 const ACTIVATION_DISTANCE: f32 = 0.5;
 
-#[derive(Debug, Parser)]
-#[clap(author, version, about, long_about = None)]
-struct Args {
-	/// Directory to scan for desktop files
-	apps_directory: PathBuf,
-}
+const CYAN: [f32; 4] = [0.0, 1.0, 1.0, 1.0];
+const BTN_SELECTED_COLOR: [f32; 4] = [0.0, 1.0, 0.0, 1.0];
+const BTN_COLOR: [f32; 4] = [1.0, 1.0, 0.0, 1.0];
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
-	color_eyre::install()?;
-
-	let args = Args::parse();
-	if !args.apps_directory.is_dir() {
-		panic!(
-			"{} is not a direcotry",
-			args.apps_directory.to_string_lossy()
-		)
-	}
-
+	color_eyre::install().unwrap();
+	tracing_subscriber::fmt()
+		.with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+		.pretty()
+		.init();
 	let (client, event_loop) = Client::connect_with_async_loop().await?;
 	client.set_base_prefixes(&[directory_relative_path!("res")]);
 
-	let _wrapped_root = client.wrap_root(Sirius::new(&client, args)?)?;
+	let _root = client.wrap_root(AppHexGrid::new(&client))?;
 
 	tokio::select! {
 		_ = tokio::signal::ctrl_c() => (),
 		e = event_loop => e??,
-	}
+	};
 	Ok(())
 }
 
-struct Sirius {
-	touch_plane: TouchPlane,
-	model: Model,
-	clients: Vec<App>,
-	visibility: bool,
-	grabbable: Grabbable,
+struct AppHexGrid {
+	apps: Vec<App>,
+	button: Button,
 }
-impl Sirius {
-	fn new(client: &Client, args: Args) -> Result<Self, NodeError> {
-		let root = Spatial::create(client.get_root(), Transform::default(), false).unwrap();
+impl AppHexGrid {
+	fn new(client: &Client) -> Self {
+		let button = Button::new(client).unwrap();
+		let mut desktop_files: Vec<DesktopFile> = get_desktop_files()
+			.filter_map(|d| parse_desktop_file(d).ok())
+			.filter(|d| !d.no_display)
+			.collect();
 
-		let field = BoxField::create(&root, Transform::default(), [0.1; 3]).unwrap();
-		let grabbable =
-			Grabbable::create(&root, Transform::default(), &field, GrabData::default())?;
+		desktop_files.sort_by_key(|d| d.clone().name.unwrap_or_default());
+
+		let mut apps = Vec::new();
+		let mut radius = 1;
+		while !desktop_files.is_empty() {
+			let mut hex = HEX_CENTER.add(&HEX_DIRECTION_VECTORS[4].clone().scale(radius));
+			for i in 0..6 {
+				if desktop_files.is_empty() {
+					break;
+				};
+				for _ in 0..radius {
+					if desktop_files.is_empty() {
+						break;
+					};
+					apps.push(
+						App::create_from_desktop_file(
+							button.grabbable.content_parent(),
+							hex.get_coords(),
+							desktop_files.pop().unwrap(),
+						)
+						.unwrap(),
+					);
+					hex = hex.neighbor(i);
+				}
+			}
+			radius += 1;
+		}
+		AppHexGrid { apps, button }
+	}
+}
+impl RootHandler for AppHexGrid {
+	fn frame(&mut self, info: FrameInfo) {
+		self.button.frame(info);
+		if self.button.touch_plane.touch_started() {
+			self.button
+				.model
+				.model_part("Hex")
+				.unwrap()
+				.set_material_parameter("color", MaterialParameter::Color(BTN_SELECTED_COLOR))
+				.unwrap();
+			for app in &mut self.apps {
+				app.toggle();
+			}
+		} else if self.button.touch_plane.touch_stopped() {
+			self.button
+				.model
+				.model_part("Hex")
+				.unwrap()
+				.set_material_parameter("color", MaterialParameter::Color(BTN_COLOR))
+				.unwrap();
+		}
+		for app in &mut self.apps {
+			app.frame(info);
+		}
+	}
+
+	fn save_state(&mut self) -> ClientState {
+		ClientState::default()
+	}
+}
+
+struct Button {
+	touch_plane: TouchPlane,
+	grabbable: Grabbable,
+	model: Model,
+}
+impl Button {
+	fn new(client: &Client) -> Result<Self, NodeError> {
+		let field = BoxField::create(client.get_root(), Transform::default(), [APP_SIZE; 3])?;
+		let grabbable = Grabbable::create(
+			client.get_root(),
+			Transform::default(),
+			&field,
+			GrabbableSettings {
+				max_distance: 0.01,
+				..Default::default()
+			},
+		)?;
+		field.set_spatial_parent(grabbable.content_parent())?;
 		let touch_plane = TouchPlane::create(
 			grabbable.content_parent(),
 			Transform::default(),
-			[0.1; 2],
-			0.03,
-			1.0..0.0,
-			1.0..0.0,
+			[(APP_SIZE + PADDING) / 2.0; 2],
+			(APP_SIZE + PADDING) / 2.0,
+			0.0..1.0,
+			0.0..1.0,
 		)?;
-
-		let walkdir = WalkDir::new(args.apps_directory.canonicalize().unwrap());
-
-		let clients: Vec<App> = walkdir
-			.into_iter()
-			.filter_map(|path| path.ok())
-			.map(|entry| entry.into_path())
-			.filter(|path| {
-				path.is_file()
-					&& path.extension().is_some()
-					&& path.extension().unwrap() == "desktop"
-			})
-			.filter_map(|path| {
-				App::create_from_desktop_file(
-					grabbable.content_parent(),
-					[0.0; 3],
-					parse_desktop_file(path).ok()?,
-				)
-				.ok()
-			})
-			.collect();
 
 		let model = Model::create(
 			grabbable.content_parent(),
-			Transform::default(),
-			&ResourceID::new_namespaced("protostar", "button"),
+			Transform::from_rotation_scale(
+				Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
+				[MODEL_SCALE; 3],
+			),
+			&ResourceID::new_namespaced("protostar", "hexagon/hexagon"),
 		)?;
-		field.set_spatial_parent(grabbable.content_parent())?;
-		let visibility = false;
-
-		Ok(Sirius {
+		model
+			.model_part("Hex")?
+			.set_material_parameter("color", MaterialParameter::Color(BTN_COLOR))?;
+		Ok(Button {
 			touch_plane,
-			model,
-			clients,
-			visibility,
 			grabbable,
+			model,
 		})
 	}
 
-	//    fn left_hand(input_data: &InputData, _: &()) -> bool {
-	//       match &input_data.input {
-	//            InputDataType::Hand(h) => !h.right,
-	//            _ => false,
-	//        }
-	//    }
-}
-impl RootHandler for Sirius {
 	fn frame(&mut self, info: FrameInfo) {
-		for app in &mut self.clients {
-			app.frame(info);
+		let _ = self.grabbable.update(&info);
+		if self.grabbable.grab_action().actor_started() {
+			let _ = self.touch_plane.set_enabled(false);
 		}
-
-		self.grabbable.update(&info).unwrap();
+		if self.grabbable.grab_action().actor_stopped() {
+			let _ = self.touch_plane.set_enabled(true);
+		}
 		self.touch_plane.update();
-		if self.touch_plane.touch_started() {
-			println!("Touch started");
-			self.visibility = !self.visibility;
-			match self.visibility {
-				true => {
-					for (pos, star) in self.clients.iter().enumerate() {
-						let mut starpos = (pos as f32 + 1.0) / 10.0;
-						match starpos % 0.2 == 0.0 {
-							true => starpos = -starpos / 2.0,
-							false => starpos = (starpos - 0.1) / 2.0,
-						}
-						println!("{}", starpos);
-						star.content_parent()
-							.set_position(
-								Some(self.grabbable.content_parent()),
-								[starpos, 0.1, 0.0],
-							)
-							.ok();
-					}
-				}
-				false => {
-					for star in &self.clients {
-						star.content_parent()
-							.set_position(Some(self.grabbable.content_parent()), [0.0; 3])
-							.ok();
-					}
-				}
-			}
-			let color = [0.0, 1.0, 0.0, 1.0];
-			self.model
-				.model_part("?????")
-				.unwrap()
-				.set_material_parameter("color", MaterialParameter::Color(color))
-				.unwrap();
-			self.model
-				.model_part("?????")
-				.unwrap()
-				.set_material_parameter(
-					"emission_factor",
-					MaterialParameter::Color(color.map(|c| c * 0.75)),
-				)
-				.unwrap();
-		}
-
-		if self.touch_plane.touch_stopped() {
-			println!("Touch ended");
-			let color = [1.0, 0.0, 0.0, 1.0];
-			self.model
-				.model_part("?????")
-				.unwrap()
-				.set_material_parameter("color", MaterialParameter::Color(color))
-				.unwrap();
-			self.model
-				.model_part("?????")
-				.unwrap()
-				.set_material_parameter(
-					"emission_factor",
-					MaterialParameter::Color(color.map(|c| c * 0.5)),
-				)
-				.unwrap();
-		}
 	}
 }
 
+// Model handling
 fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
 	match &icon.icon_type {
 		IconType::Png => {
 			let t = Transform::from_rotation_scale(
 				Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
-				[APP_SIZE * 0.5; 3],
+				[APP_SIZE / 2.0; 3],
 			);
 
 			let model = Model::create(
@@ -211,7 +196,7 @@ fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
 			)?;
 			model
 				.model_part("Hex")?
-				.set_material_parameter("color", MaterialParameter::Color([0.0, 1.0, 1.0, 1.0]))?;
+				.set_material_parameter("color", MaterialParameter::Color(CYAN))?;
 			model.model_part("Icon")?.set_material_parameter(
 				"diffuse",
 				MaterialParameter::Texture(ResourceID::Direct(icon.path.clone())),
@@ -248,15 +233,14 @@ impl App {
 	) -> Result<Self> {
 		let position = position.into();
 		let field = BoxField::create(parent, Transform::default(), [APP_SIZE; 3])?;
-		let application = Application::create(&parent.client()?, desktop_file)?;
+		let application = Application::create(desktop_file)?;
 		let icon = application.icon(128, false);
 		let grabbable = Grabbable::create(
 			parent,
 			Transform::from_position(position),
 			&field,
-			GrabData {
+			GrabbableSettings {
 				max_distance: 0.01,
-				frame_cancel_threshold: 50,
 				..Default::default()
 			},
 		)?;
@@ -327,8 +311,7 @@ impl App {
 		}
 		self.currently_shown = !self.currently_shown;
 	}
-}
-impl RootHandler for App {
+
 	fn frame(&mut self, info: FrameInfo) {
 		let _ = self.grabbable.update(&info);
 
@@ -412,6 +395,7 @@ impl RootHandler for App {
 				let distance = Vec3::from(distance_vector).length_squared();
 
 				if distance > ACTIVATION_DISTANCE {
+					let _ = space.set_scale(None, [1.0; 3]);
 					let _ = application.launch(&space);
 				}
 			});

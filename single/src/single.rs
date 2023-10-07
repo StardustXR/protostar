@@ -1,23 +1,23 @@
-use crate::{
-	application::Application,
-	xdg::{DesktopFile, Icon, IconType},
-};
 use color_eyre::eyre::Result;
 use glam::{Quat, Vec3};
 use mint::Vector3;
+use protostar::{
+	application::Application,
+	xdg::{DesktopFile, Icon, IconType},
+};
 use stardust_xr_fusion::{
-	client::{FrameInfo, RootHandler},
+	client::{ClientState, FrameInfo, RootHandler},
 	core::values::Transform,
 	drawable::{Alignment, Bounds, MaterialParameter, Model, ResourceID, Text, TextFit, TextStyle},
 	fields::BoxField,
 	node::NodeType,
 	spatial::Spatial,
 };
-use stardust_xr_molecules::{GrabData, Grabbable};
+use stardust_xr_molecules::{Grabbable, GrabbableSettings};
 use std::f32::consts::PI;
 use tween::{QuartInOut, Tweener};
 
-const MODEL_SCALE: f32 = 0.03;
+const MODEL_SCALE: f32 = 0.05;
 const ACTIVATION_DISTANCE: f32 = 0.5;
 
 fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
@@ -51,7 +51,7 @@ fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
 	}
 }
 
-pub struct ProtoStar {
+pub struct Single {
 	application: Application,
 	parent: Spatial,
 	position: Vector3<f32>,
@@ -65,7 +65,7 @@ pub struct ProtoStar {
 	currently_shown: bool,
 }
 
-impl ProtoStar {
+impl Single {
 	pub fn create_from_desktop_file(
 		parent: &Spatial,
 		position: impl Into<Vector3<f32>>,
@@ -73,13 +73,13 @@ impl ProtoStar {
 	) -> Result<Self> {
 		let position = position.into();
 		let field = BoxField::create(parent, Transform::default(), [MODEL_SCALE * 2.0; 3])?;
-		let application = Application::create(&parent.client()?, desktop_file)?;
+		let application = Application::create(desktop_file)?;
 		let icon = application.icon(128, false);
 		let grabbable = Grabbable::create(
 			parent,
 			Transform::from_position(position),
 			&field,
-			GrabData {
+			GrabbableSettings {
 				max_distance: 0.01,
 				..Default::default()
 			},
@@ -91,11 +91,8 @@ impl ProtoStar {
 			.unwrap_or_else(|| {
 				Ok(Model::create(
 					grabbable.content_parent(),
-					Transform::from_rotation_scale(
-						Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
-						[MODEL_SCALE; 3],
-					),
-					&ResourceID::new_namespaced("protostar", "hexagon/hexagon"),
+					Transform::from_scale([MODEL_SCALE; 3]),
+					&ResourceID::new_namespaced("protostar", "default_icon"),
 				)?)
 			})?;
 
@@ -121,7 +118,7 @@ impl ProtoStar {
 			)
 			.ok()
 		});
-		Ok(ProtoStar {
+		Ok(Single {
 			parent: parent.alias(),
 			position,
 			grabbable,
@@ -139,7 +136,7 @@ impl ProtoStar {
 		self.grabbable.content_parent()
 	}
 }
-impl RootHandler for ProtoStar {
+impl RootHandler for Single {
 	fn frame(&mut self, info: FrameInfo) {
 		let _ = self.grabbable.update(&info);
 
@@ -234,5 +231,9 @@ impl RootHandler for ProtoStar {
 				}
 			});
 		}
+	}
+
+	fn save_state(&mut self) -> ClientState {
+		ClientState::default()
 	}
 }

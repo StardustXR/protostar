@@ -7,14 +7,14 @@ use protostar::{
 	xdg::{get_desktop_files, parse_desktop_file, DesktopFile, Icon, IconType},
 };
 use stardust_xr_fusion::{
-	client::{Client, FrameInfo, RootHandler},
+	client::{Client, ClientState, FrameInfo, RootHandler},
 	core::values::Transform,
 	drawable::{Alignment, Bounds, MaterialParameter, Model, ResourceID, Text, TextFit, TextStyle},
 	fields::BoxField,
 	node::NodeType,
 	spatial::Spatial,
 };
-use stardust_xr_molecules::{GrabData, Grabbable};
+use stardust_xr_molecules::{Grabbable, GrabbableSettings};
 use std::f32::consts::PI;
 
 const APP_LIMIT: usize = 300;
@@ -75,6 +75,9 @@ impl RootHandler for AppGrid {
 			app.frame(info);
 		}
 	}
+	fn save_state(&mut self) -> ClientState {
+		ClientState::default()
+	}
 }
 
 fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
@@ -124,15 +127,14 @@ impl App {
 	) -> Result<Self> {
 		let root = Spatial::create(parent, Transform::from_position(position), false)?;
 		let field = BoxField::create(&root, Transform::default(), [APP_SIZE; 3])?;
-		let application = Application::create(&parent.client()?, desktop_file)?;
+		let application = Application::create(desktop_file)?;
 		let icon = application.icon(128, true);
 		let grabbable = Grabbable::create(
 			&root,
 			Transform::identity(),
 			&field,
-			GrabData {
+			GrabbableSettings {
 				max_distance: 0.01,
-				frame_cancel_threshold: 50,
 				..Default::default()
 			},
 		)?;
@@ -186,8 +188,7 @@ impl App {
 			.set_transform(Some(&self.root), Transform::identity())
 			.unwrap();
 	}
-}
-impl RootHandler for App {
+
 	fn frame(&mut self, info: FrameInfo) {
 		let _ = self.grabbable.update(&info);
 
