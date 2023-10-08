@@ -1,5 +1,5 @@
 use crate::xdg::{DesktopFile, Icon, IconType};
-use nix::unistd::setsid;
+use nix::libc::setsid;
 use regex::Regex;
 use stardust_xr_fusion::{
 	client::ClientState,

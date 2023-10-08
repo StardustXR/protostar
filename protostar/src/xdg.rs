@@ -7,20 +7,17 @@ use resvg::render;
 use resvg::tiny_skia::{Pixmap, Transform};
 use resvg::usvg::{FitTo, Tree};
 use serde::{Deserialize, Serialize};
-use serde_json;
 use serde_with::serde_as;
 use std::collections::HashMap;
 use std::ffi::OsString;
 use std::fs::create_dir_all;
-use std::fs::File;
 use std::io::{BufRead, BufReader, ErrorKind};
-use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::Mutex;
 use std::{env, fs};
-
 use walkdir::WalkDir;
+
 #[serde_as]
 #[derive(Deserialize, Serialize)]
 struct ImageCache {
@@ -31,16 +28,12 @@ struct ImageCache {
 
 impl ImageCache {
 	fn new(path: PathBuf) -> Self {
-		if let Ok(mut file) = File::open(&path) {
-			let mut buf = vec![];
-			if file.read_to_end(&mut buf).is_ok() {
-				if let Ok(cache) = serde_json::from_slice(&buf[..]) {
-					return cache;
-				}
+		if let Ok(text) = std::fs::read_to_string(&path) {
+			if let Ok(cache) = toml::de::from_str(&text) {
+				return cache;
 			}
 		}
 
-		//There was no file, or the file failed to load, create a new World.
 		ImageCache {
 			path,
 			map: HashMap::new(),
@@ -52,15 +45,13 @@ impl ImageCache {
 	}
 
 	fn save(&self) {
-		let mut f = File::create(&self.path).unwrap();
-		let buf = serde_json::to_vec(&self).unwrap();
-		f.write_all(&buf[..]).unwrap();
+		std::fs::write(&self.path, toml::ser::to_string_pretty(self).unwrap()).unwrap();
 	}
 }
 
 lazy_static! {
 	static ref IMAGE_CACHE: Mutex<ImageCache> = Mutex::new(ImageCache::new(
-		get_image_cache_dir().join("imagechache.map")
+		get_image_cache_dir().join("imagecache.map")
 	));
 }
 
