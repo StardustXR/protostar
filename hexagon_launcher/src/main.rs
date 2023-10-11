@@ -1,7 +1,7 @@
 pub mod hex;
 
 use color_eyre::eyre::Result;
-use glam::{Quat, Vec3};
+use glam::{EulerRot, Quat, Vec3};
 use hex::{HEX_CENTER, HEX_DIRECTION_VECTORS};
 use manifest_dir_macros::directory_relative_path;
 use mint::Vector3;
@@ -25,7 +25,7 @@ use tween::{QuartInOut, Tweener};
 const APP_SIZE: f32 = 0.06;
 const PADDING: f32 = 0.005;
 const MODEL_SCALE: f32 = 0.03;
-const ACTIVATION_DISTANCE: f32 = 0.5;
+const ACTIVATION_DISTANCE: f32 = 0.05;
 
 const CYAN: [f32; 4] = [0.0, 1.0, 1.0, 1.0];
 const BTN_SELECTED_COLOR: [f32; 4] = [0.0, 1.0, 0.0, 1.0];
@@ -395,7 +395,17 @@ impl App {
 				let distance = Vec3::from(distance_vector).length_squared();
 
 				if distance > ACTIVATION_DISTANCE {
-					let _ = space.set_scale(None, [1.0; 3]);
+					let client = space.node().client().unwrap();
+					let (_, space_rot, _) = space
+						.get_position_rotation_scale(&client.get_root())
+						.unwrap()
+						.await
+						.unwrap();
+					let (_, y_rot, _) = Quat::from(space_rot).to_euler(EulerRot::XYZ);
+					let _ = space.set_transform(
+						Some(client.get_root()),
+						Transform::from_rotation_scale(Quat::from_rotation_y(y_rot), [1.0; 3]),
+					);
 					let _ = application.launch(&space);
 				}
 			});
