@@ -1,3 +1,4 @@
+use color::rgba_linear;
 use color_eyre::eyre::Result;
 use glam::{Quat, Vec3};
 use mint::Vector3;
@@ -33,9 +34,10 @@ fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
 				t,
 				&ResourceID::new_namespaced("protostar", "hexagon/hexagon"),
 			)?;
-			model
-				.model_part("Hex")?
-				.set_material_parameter("color", MaterialParameter::Color([0.0, 1.0, 1.0, 1.0]))?;
+			model.model_part("Hex")?.set_material_parameter(
+				"color",
+				MaterialParameter::Color(rgba_linear!(0.0, 1.0, 1.0, 1.0)),
+			)?;
 			model.model_part("Icon")?.set_material_parameter(
 				"diffuse",
 				MaterialParameter::Texture(ResourceID::Direct(icon.path.clone())),
@@ -211,12 +213,15 @@ impl RootHandler for Single {
 					.unwrap();
 				self.grabbable_grow = None;
 			}
-		} else if self.grabbable.valid() && self.grabbable.grab_action().actor_stopped() {
+		} else if self.grabbable.grab_action().actor_stopped() {
 			self.grabbable_shrink = Some(Tweener::quart_in_out(MODEL_SCALE, 0.0001, 0.25));
-			let Ok(distance_future) = self.grabbable
+			let Ok(distance_future) = self
+				.grabbable
 				.content_parent()
 				.get_position_rotation_scale(&self.parent)
-				 else {return};
+			else {
+				return;
+			};
 
 			let application = self.application.clone();
 			let space = self.content_parent().alias();

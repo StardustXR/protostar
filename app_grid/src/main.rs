@@ -1,3 +1,4 @@
+use color::rgba_linear;
 use color_eyre::eyre::Result;
 use glam::{Quat, Vec3};
 use manifest_dir_macros::directory_relative_path;
@@ -93,9 +94,10 @@ fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
 				Transform::from_rotation(Quat::from_rotation_y(PI)),
 				&ResourceID::new_namespaced("protostar", "cartridge"),
 			)?;
-			model
-				.model_part("Cartridge")?
-				.set_material_parameter("color", MaterialParameter::Color([0.0, 1.0, 1.0, 1.0]))?;
+			model.model_part("Cartridge")?.set_material_parameter(
+				"color",
+				MaterialParameter::Color(rgba_linear!(0.0, 1.0, 1.0, 1.0)),
+			)?;
 			model.model_part("Icon")?.set_material_parameter(
 				"diffuse",
 				MaterialParameter::Texture(ResourceID::Direct(icon.path.clone())),
@@ -182,12 +184,12 @@ impl App {
 		self.grabbable.content_parent()
 	}
 
-	fn bring_back(&self) {
-		self.grabbable
-			.content_parent()
-			.set_transform(Some(&self.root), Transform::identity())
-			.unwrap();
-	}
+	// fn bring_back(&self) {
+	// 	self.grabbable
+	// 		.content_parent()
+	// 		.set_transform(Some(&self.root), Transform::identity())
+	// 		.unwrap();
+	// }
 
 	fn frame(&mut self, info: FrameInfo) {
 		let _ = self.grabbable.update(&info);
@@ -196,23 +198,29 @@ impl App {
 			self.grabbable.cancel_angular_velocity();
 			self.grabbable.cancel_linear_velocity();
 
-			if !self.grabbable.valid() {
-				self.bring_back();
-				return;
-			}
-			let Ok(distance_future) = self.grabbable
+			// if !self.grabbable.valid() {
+			// 	self.bring_back();
+			// 	return;
+			// }
+			let Ok(distance_future) = self
+				.grabbable
 				.content_parent()
 				.get_position_rotation_scale(&self.root)
-				 else {return};
+			else {
+				return;
+			};
 
 			let application = self.application.clone();
 			let space = self.content_parent().alias();
 			let root = self.root.alias();
 
 			tokio::task::spawn(async move {
-				let Ok((distance, _rotation, _scale)) = distance_future.await else { space
-					.set_transform(Some(&root), Transform::identity())
-					.unwrap(); return};
+				let Ok((distance, _rotation, _scale)) = distance_future.await else {
+					space
+						.set_transform(Some(&root), Transform::identity())
+						.unwrap();
+					return;
+				};
 				let distance = Vec3::from(distance).length_squared();
 
 				if distance > ACTIVATION_DISTANCE.powi(2) {

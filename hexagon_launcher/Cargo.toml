@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 tokio = { version = "1.32.0", features = ["rt", "tokio-macros", "sync"] }
 protostar = { path = "../protostar" }
+color-rs = "0.8.0"
 color-eyre = "0.6.2"
 clap = "4.4.6"
 manifest-dir-macros = "0.1.18"

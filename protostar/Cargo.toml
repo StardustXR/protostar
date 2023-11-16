@@ -12,7 +12,7 @@ ez-pixmap = "0.2.2"
 freedesktop-icons-greedy = "0.2.6"
 glam = { version = "0.24.0", features = ["mint"] }
 image = "0.24.5"
-itertools = "0.11.0"
+itertools = "0.12.0"
 lazy_static = "1.4.0"
 linicon-theme = "1.2.0"
 manifest-dir-macros = "0.1.16"
@@ -22,7 +22,7 @@ regex = "1.7.1"
 resvg = "0.29.0"
 rustc-hash = "1.1.0"
 serde = "1.0.155"
-serde_with = "3.3.0"
+serde_with = "3.4.0"
 tokio = { version = "1.24.1", features = ["full"] }
 toml = "0.8.2"
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }

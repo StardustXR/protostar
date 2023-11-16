@@ -1,220 +1,31 @@
-use clap::{self, Parser};
-use color::rgba_linear;
 use color_eyre::eyre::Result;
-use glam::{Quat, Vec3};
-use manifest_dir_macros::directory_relative_path;
+use glam::{EulerRot, Quat, Vec3};
 use mint::Vector3;
 use protostar::{
 	application::Application,
-	xdg::{parse_desktop_file, DesktopFile, Icon, IconType},
+	xdg::{DesktopFile, Icon, IconType},
 };
 use stardust_xr_fusion::{
-	client::{Client, ClientState, FrameInfo, RootHandler},
+	client::FrameInfo,
 	core::values::Transform,
 	drawable::{Alignment, Bounds, MaterialParameter, Model, ResourceID, Text, TextFit, TextStyle},
 	fields::BoxField,
-	node::NodeError,
 	node::NodeType,
 	spatial::Spatial,
 };
-use stardust_xr_molecules::{touch_plane::TouchPlane, Grabbable, GrabbableSettings};
-use std::{f32::consts::PI, path::PathBuf};
-
+use stardust_xr_molecules::{Grabbable, GrabbableSettings};
+use std::f32::consts::PI;
 use tween::{QuartInOut, Tweener};
-use walkdir::WalkDir;
 
-const APP_SIZE: f32 = 0.06;
-const ACTIVATION_DISTANCE: f32 = 0.5;
+use crate::{ACTIVATION_DISTANCE, APP_SIZE, DEFAULT_HEX_COLOR};
 
-#[derive(Debug, Parser)]
-#[clap(author, version, about, long_about = None)]
-struct Args {
-	/// Directory to scan for desktop files
-	apps_directory: PathBuf,
-}
-
-#[tokio::main(flavor = "current_thread")]
-async fn main() -> Result<()> {
-	color_eyre::install()?;
-
-	let args = Args::parse();
-	if !args.apps_directory.is_dir() {
-		panic!(
-			"{} is not a direcotry",
-			args.apps_directory.to_string_lossy()
-		)
-	}
-
-	let (client, event_loop) = Client::connect_with_async_loop().await?;
-	client.set_base_prefixes(&[directory_relative_path!("res")]);
-
-	let _wrapped_root = client.wrap_root(Sirius::new(&client, args)?)?;
-
-	tokio::select! {
-		_ = tokio::signal::ctrl_c() => (),
-		e = event_loop => e??,
-	}
-	Ok(())
-}
-
-struct Sirius {
-	touch_plane: TouchPlane,
-	model: Model,
-	clients: Vec<App>,
-	visibility: bool,
-	grabbable: Grabbable,
-}
-impl Sirius {
-	fn new(client: &Client, args: Args) -> Result<Self, NodeError> {
-		let root = Spatial::create(client.get_root(), Transform::default(), false).unwrap();
-
-		let field = BoxField::create(&root, Transform::default(), [0.1; 3]).unwrap();
-		let grabbable = Grabbable::create(
-			&root,
-			Transform::default(),
-			&field,
-			GrabbableSettings::default(),
-		)?;
-		let touch_plane = TouchPlane::create(
-			grabbable.content_parent(),
-			Transform::default(),
-			[0.1; 2],
-			0.03,
-			1.0..0.0,
-			1.0..0.0,
-		)?;
-
-		let walkdir = WalkDir::new(args.apps_directory.canonicalize().unwrap());
-
-		let clients: Vec<App> = walkdir
-			.into_iter()
-			.filter_map(|path| path.ok())
-			.map(|entry| entry.into_path())
-			.filter(|path| {
-				path.is_file()
-					&& path.extension().is_some()
-					&& path.extension().unwrap() == "desktop"
-			})
-			.filter_map(|path| {
-				App::create_from_desktop_file(
-					grabbable.content_parent(),
-					[0.0; 3],
-					parse_desktop_file(path).ok()?,
-				)
-				.ok()
-			})
-			.collect();
-
-		let model = Model::create(
-			grabbable.content_parent(),
-			Transform::default(),
-			&ResourceID::new_namespaced("protostar", "button"),
-		)?;
-		field.set_spatial_parent(grabbable.content_parent())?;
-		let visibility = false;
-
-		Ok(Sirius {
-			touch_plane,
-			model,
-			clients,
-			visibility,
-			grabbable,
-		})
-	}
-
-	//    fn left_hand(input_data: &InputData, _: &()) -> bool {
-	//       match &input_data.input {
-	//            InputDataType::Hand(h) => !h.right,
-	//            _ => false,
-	//        }
-	//    }
-}
-impl RootHandler for Sirius {
-	fn frame(&mut self, info: FrameInfo) {
-		for app in &mut self.clients {
-			app.frame(info);
-		}
-
-		self.grabbable.update(&info).unwrap();
-		self.touch_plane.update();
-		if self.touch_plane.touch_started() {
-			println!("Touch started");
-			self.visibility = !self.visibility;
-			match self.visibility {
-				true => {
-					for (pos, star) in self.clients.iter().enumerate() {
-						let mut starpos = (pos as f32 + 1.0) / 10.0;
-						match starpos % 0.2 == 0.0 {
-							true => starpos = -starpos / 2.0,
-							false => starpos = (starpos - 0.1) / 2.0,
-						}
-						println!("{}", starpos);
-						star.content_parent()
-							.set_position(
-								Some(self.grabbable.content_parent()),
-								[starpos, 0.1, 0.0],
-							)
-							.ok();
-					}
-				}
-				false => {
-					for star in &self.clients {
-						star.content_parent()
-							.set_position(Some(self.grabbable.content_parent()), [0.0; 3])
-							.ok();
-					}
-				}
-			}
-			self.model
-				.model_part("?????")
-				.unwrap()
-				.set_material_parameter(
-					"color",
-					MaterialParameter::Color(rgba_linear!(0.0, 1.0, 0.0, 1.0)),
-				)
-				.unwrap();
-			self.model
-				.model_part("?????")
-				.unwrap()
-				.set_material_parameter(
-					"emission_factor",
-					MaterialParameter::Color(rgba_linear!(0.0, 0.75, 0.0, 0.75)),
-				)
-				.unwrap();
-		}
-
-		if self.touch_plane.touch_stopped() {
-			println!("Touch ended");
-			self.model
-				.model_part("?????")
-				.unwrap()
-				.set_material_parameter(
-					"color",
-					MaterialParameter::Color(rgba_linear!(1.0, 0.0, 0.0, 1.0)),
-				)
-				.unwrap();
-			self.model
-				.model_part("?????")
-				.unwrap()
-				.set_material_parameter(
-					"emission_factor",
-					MaterialParameter::Color(rgba_linear!(0.5, 0.0, 0.0, 0.5)),
-				)
-				.unwrap();
-		}
-	}
-
-	fn save_state(&mut self) -> ClientState {
-		ClientState::default()
-	}
-}
-
+// Model handling
 fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
 	match &icon.icon_type {
 		IconType::Png => {
 			let t = Transform::from_rotation_scale(
 				Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
-				[APP_SIZE * 0.5; 3],
+				[APP_SIZE / 2.0; 3],
 			);
 
 			let model = Model::create(
@@ -222,10 +33,9 @@ fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
 				t,
 				&ResourceID::new_namespaced("protostar", "hexagon/hexagon"),
 			)?;
-			model.model_part("Hex")?.set_material_parameter(
-				"color",
-				MaterialParameter::Color(rgba_linear!(0.0, 1.0, 1.0, 1.0)),
-			)?;
+			model
+				.model_part("Hex")?
+				.set_material_parameter("color", MaterialParameter::Color(DEFAULT_HEX_COLOR))?;
 			model.model_part("Icon")?.set_material_parameter(
 				"diffuse",
 				MaterialParameter::Texture(ResourceID::Direct(icon.path.clone())),
@@ -341,7 +151,7 @@ impl App {
 		self.currently_shown = !self.currently_shown;
 	}
 
-	fn frame(&mut self, info: FrameInfo) {
+	pub fn frame(&mut self, info: FrameInfo) {
 		let _ = self.grabbable.update(&info);
 
 		if let Some(grabbable_move) = &mut self.grabbable_move {
@@ -427,6 +237,17 @@ impl App {
 				let distance = Vec3::from(distance_vector).length_squared();
 
 				if distance > ACTIVATION_DISTANCE {
+					let client = space.node().client().unwrap();
+					let (_, space_rot, _) = space
+						.get_position_rotation_scale(&client.get_root())
+						.unwrap()
+						.await
+						.unwrap();
+					let (_, y_rot, _) = Quat::from(space_rot).to_euler(EulerRot::XYZ);
+					let _ = space.set_transform(
+						Some(client.get_root()),
+						Transform::from_rotation_scale(Quat::from_rotation_y(y_rot), [1.0; 3]),
+					);
 					let _ = application.launch(&space);
 				}
 			});

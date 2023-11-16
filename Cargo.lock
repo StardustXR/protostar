@@ -141,6 +141,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "color-eyre",
+ "color-rs",
  "glam",
  "manifest-dir-macros",
  "mint",
@@ -702,7 +703,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e31b487427ff5df1386fa4721fcf41923140eb72fc20d776ac95ccbc21fa7bbb"
 dependencies = [
  "dirs 4.0.0",
- "itertools",
+ "itertools 0.11.0",
  "once_cell",
  "rust-ini 0.18.0",
  "thiserror",
@@ -849,6 +850,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "color-eyre",
+ "color-rs",
  "glam",
  "manifest-dir-macros",
  "mint",
@@ -956,6 +958,15 @@ name = "itertools"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b1c173a5686ce8bfa551b3563d0c2170bf24ca44da99c7ca4bfdab5418c3fe57"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "25db6b064527c5d482d0423354fcd07a89a2dfe07b67892e62411946db7f07b0"
 dependencies = [
  "either",
 ]
@@ -1337,7 +1348,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8cad0c4b129e9696e37cb712b243777b90ef489a0bfaa0ac34e7d9b860e4f134"
 dependencies = [
  "heck",
- "itertools",
+ "itertools 0.11.0",
  "proc-macro-error",
  "proc-macro2",
  "quote",
@@ -1516,7 +1527,7 @@ dependencies = [
  "freedesktop-icons-greedy",
  "glam",
  "image",
- "itertools",
+ "itertools 0.12.0",
  "lazy_static",
  "linicon-theme",
  "manifest-dir-macros",
@@ -1920,9 +1931,9 @@ dependencies = [
 
 [[package]]
 name = "serde_with"
-version = "3.3.0"
+version = "3.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ca3b16a3d82c4088f343b7480a93550b3eabe1a358569c2dfe38bbcead07237"
+checksum = "64cd236ccc1b7a29e7e2739f27c0b2dd199804abc4290e32f59f3b68d6405c23"
 dependencies = [
  "base64",
  "chrono",
@@ -1937,9 +1948,9 @@ dependencies = [
 
 [[package]]
 name = "serde_with_macros"
-version = "3.3.0"
+version = "3.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e6be15c453eb305019bfa438b1593c731f36a289a7853f7707ee29e870b3b3c"
+checksum = "93634eb5f75a2323b16de4748022ac4297f9e76b6dced2be287a099f41b5e788"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -1986,6 +1997,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "color-eyre",
+ "color-rs",
  "glam",
  "manifest-dir-macros",
  "mint",
@@ -2009,6 +2021,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "color-eyre",
+ "color-rs",
  "glam",
  "manifest-dir-macros",
  "mint",
@@ -2049,7 +2062,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr"
 version = "0.14.1"
-source = "git+https://github.com/StardustXR/core.git#7b6c7b1b77075a7035f8a3ef07b430863ed9d60e"
+source = "git+https://github.com/StardustXR/core.git#975331f9739a9f6cb90ec75813b7720c86225848"
 dependencies = [
  "cluFlock",
  "color-rs",
@@ -2069,7 +2082,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-fusion"
 version = "0.43.2"
-source = "git+https://github.com/StardustXR/core.git#7b6c7b1b77075a7035f8a3ef07b430863ed9d60e"
+source = "git+https://github.com/StardustXR/core.git#975331f9739a9f6cb90ec75813b7720c86225848"
 dependencies = [
  "color-eyre",
  "color-rs",
@@ -2081,6 +2094,7 @@ dependencies = [
  "rustc-hash",
  "serde",
  "serde_repr",
+ "serde_with",
  "stardust-xr",
  "thiserror",
  "tokio",
@@ -2090,7 +2104,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-molecules"
 version = "0.29.0"
-source = "git+https://github.com/StardustXR/molecules.git#6e389f837375a34a10dfd35a633072a77a9f14d8"
+source = "git+https://github.com/StardustXR/molecules.git#2e60ed7f75a1a79d89b83237dea4d208bc1ab01c"
 dependencies = [
  "color-rs",
  "glam",
@@ -2109,7 +2123,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-schemas"
 version = "1.5.3"
-source = "git+https://github.com/StardustXR/core.git#7b6c7b1b77075a7035f8a3ef07b430863ed9d60e"
+source = "git+https://github.com/StardustXR/core.git#975331f9739a9f6cb90ec75813b7720c86225848"
 dependencies = [
  "flatbuffers",
  "flexbuffers",
