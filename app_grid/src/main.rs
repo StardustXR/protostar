@@ -9,11 +9,14 @@ use protostar::{
 };
 use stardust_xr_fusion::{
 	client::{Client, ClientState, FrameInfo, RootHandler},
-	core::values::Transform,
-	drawable::{Alignment, Bounds, MaterialParameter, Model, ResourceID, Text, TextFit, TextStyle},
+	core::values::ResourceID,
+	drawable::{
+		MaterialParameter, Model, ModelPartAspect, Text, TextBounds, TextFit, TextStyle, XAlign,
+		YAlign,
+	},
 	fields::BoxField,
 	node::NodeType,
-	spatial::Spatial,
+	spatial::{Spatial, SpatialAspect, Transform},
 };
 use stardust_xr_molecules::{Grabbable, GrabbableSettings};
 use std::f32::consts::PI;
@@ -123,12 +126,12 @@ pub struct App {
 }
 impl App {
 	pub fn create_from_desktop_file(
-		parent: &Spatial,
+		parent: &impl SpatialAspect,
 		position: impl Into<Vector3<f32>>,
 		desktop_file: DesktopFile,
 	) -> Result<Self> {
-		let root = Spatial::create(parent, Transform::from_position(position), false)?;
-		let field = BoxField::create(&root, Transform::default(), [APP_SIZE; 3])?;
+		let root = Spatial::create(parent, Transform::from_translation(position), false)?;
+		let field = BoxField::create(&root, Transform::none(), [APP_SIZE; 3])?;
 		let application = Application::create(desktop_file)?;
 		let icon = application.icon(128, true);
 		let grabbable = Grabbable::create(
@@ -154,17 +157,19 @@ impl App {
 
 		let label_style = TextStyle {
 			character_height: 0.005,
-			bounds: Some(Bounds {
+			bounds: Some(TextBounds {
 				bounds: [0.047013, 0.01].into(),
 				fit: TextFit::Wrap,
-				bounds_align: Alignment::XCenter | Alignment::YCenter,
+				anchor_align_x: XAlign::Center,
+				anchor_align_y: YAlign::Center,
 			}),
-			text_align: Alignment::Center.into(),
+			text_align_x: XAlign::Center,
+			text_align_y: YAlign::Center,
 			..Default::default()
 		};
 		let label = application.name().and_then(|name| {
 			Text::create(
-				&*icon.model_part("Label").ok()?,
+				&icon.model_part("Label").ok()?,
 				Transform::none(),
 				name,
 				label_style,
@@ -202,33 +207,26 @@ impl App {
 			// 	self.bring_back();
 			// 	return;
 			// }
-			let Ok(distance_future) = self
-				.grabbable
-				.content_parent()
-				.get_position_rotation_scale(&self.root)
-			else {
-				return;
-			};
 
 			let application = self.application.clone();
 			let space = self.content_parent().alias();
 			let root = self.root.alias();
 
 			tokio::task::spawn(async move {
-				let Ok((distance, _rotation, _scale)) = distance_future.await else {
+				let Ok(transform) = space.get_transform(&root).await else {
 					space
-						.set_transform(Some(&root), Transform::identity())
+						.set_relative_transform(&root, Transform::identity())
 						.unwrap();
 					return;
 				};
-				let distance = Vec3::from(distance).length_squared();
+				let distance = Vec3::from(transform.translation.unwrap()).length_squared();
 
 				if distance > ACTIVATION_DISTANCE.powi(2) {
 					let _ = application.launch(&space);
 				}
 
 				space
-					.set_transform(Some(&root), Transform::identity())
+					.set_relative_transform(&root, Transform::identity())
 					.unwrap();
 			});
 		}

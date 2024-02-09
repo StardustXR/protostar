@@ -23,20 +23,14 @@ resvg = "0.29.0"
 rustc-hash = "1.1.0"
 serde = "1.0.155"
 serde_with = "3.4.0"
-tokio = { version = "1.24.1", features = ["full"] }
 toml = "0.8.2"
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
 tween = "2.0.0"
 ustr = "0.10.0"
 walkdir = "2.3.3"
-
-[dependencies.stardust-xr-fusion]
-git = "https://github.com/StardustXR/core.git"
-# path = "../../core/fusion"
-
-[dependencies.stardust-xr-molecules]
-git = "https://github.com/StardustXR/molecules.git"
-# path = "../../molecules"
+tokio = { workspace = true }
+stardust-xr-fusion = { workspace = true }
+stardust-xr-molecules = { workspace = true }
 
 
 [dev-dependencies]

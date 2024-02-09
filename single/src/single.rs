@@ -8,11 +8,14 @@ use protostar::{
 };
 use stardust_xr_fusion::{
 	client::{ClientState, FrameInfo, RootHandler},
-	core::values::Transform,
-	drawable::{Alignment, Bounds, MaterialParameter, Model, ResourceID, Text, TextFit, TextStyle},
+	core::values::ResourceID,
+	drawable::{
+		MaterialParameter, Model, ModelPartAspect, Text, TextBounds, TextFit, TextStyle, XAlign,
+		YAlign,
+	},
 	fields::BoxField,
 	node::NodeType,
-	spatial::Spatial,
+	spatial::{Spatial, SpatialAspect, Transform},
 };
 use stardust_xr_molecules::{Grabbable, GrabbableSettings};
 use std::f32::consts::PI;
@@ -55,7 +58,7 @@ fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
 
 pub struct Single {
 	application: Application,
-	parent: Spatial,
+	root: Spatial,
 	position: Vector3<f32>,
 	grabbable: Grabbable,
 	_field: BoxField,
@@ -69,24 +72,25 @@ pub struct Single {
 
 impl Single {
 	pub fn create_from_desktop_file(
-		parent: &Spatial,
+		parent: &impl SpatialAspect,
 		position: impl Into<Vector3<f32>>,
 		desktop_file: DesktopFile,
 	) -> Result<Self> {
+		let root = Spatial::create(parent, Transform::identity(), false)?;
 		let position = position.into();
-		let field = BoxField::create(parent, Transform::default(), [MODEL_SCALE * 2.0; 3])?;
+		let field = BoxField::create(&root, Transform::identity(), [MODEL_SCALE * 2.0; 3])?;
 		let application = Application::create(desktop_file)?;
 		let icon = application.icon(128, false);
 		let grabbable = Grabbable::create(
-			parent,
-			Transform::from_position(position),
+			&root,
+			Transform::from_translation(position),
 			&field,
 			GrabbableSettings {
 				max_distance: 0.01,
 				..Default::default()
 			},
 		)?;
-		grabbable.content_parent().set_spatial_parent(parent)?;
+		grabbable.content_parent().set_spatial_parent(&root)?;
 		field.set_spatial_parent(grabbable.content_parent())?;
 		let icon = icon
 			.map(|i| model_from_icon(grabbable.content_parent(), &i))
@@ -100,18 +104,20 @@ impl Single {
 
 		let label_style = TextStyle {
 			character_height: MODEL_SCALE * 4.0,
-			bounds: Some(Bounds {
+			bounds: Some(TextBounds {
 				bounds: [1.0; 2].into(),
 				fit: TextFit::Wrap,
-				bounds_align: Alignment::XCenter | Alignment::YCenter,
+				anchor_align_x: XAlign::Center,
+				anchor_align_y: YAlign::Center,
 			}),
-			text_align: Alignment::Center.into(),
+			text_align_x: XAlign::Center,
+			text_align_y: YAlign::Center,
 			..Default::default()
 		};
 		let label = application.name().and_then(|name| {
 			Text::create(
 				&icon,
-				Transform::from_position_rotation(
+				Transform::from_translation_rotation(
 					[0.0, 0.1, -(MODEL_SCALE * 8.0)],
 					Quat::from_rotation_x(PI * 0.5),
 				),
@@ -121,7 +127,7 @@ impl Single {
 			.ok()
 		});
 		Ok(Single {
-			parent: parent.alias(),
+			root,
 			position,
 			grabbable,
 			_field: field,
@@ -147,13 +153,13 @@ impl RootHandler for Single {
 				let scale = grabbable_move.move_by(info.delta);
 				self.grabbable
 					.content_parent()
-					.set_position(
-						Some(&self.parent),
-						[
+					.set_relative_transform(
+						&self.root,
+						Transform::from_translation([
 							self.position.x * scale,
 							self.position.y * scale,
 							self.position.z * scale,
-						],
+						]),
 					)
 					.unwrap();
 			} else {
@@ -171,12 +177,12 @@ impl RootHandler for Single {
 				let scale = grabbable_shrink.move_by(info.delta);
 				self.grabbable
 					.content_parent()
-					.set_scale(Some(&self.parent), Vector3::from([scale; 3]))
+					.set_relative_transform(&self.root, Transform::from_scale([scale; 3]))
 					.unwrap();
 			} else {
 				self.grabbable
 					.content_parent()
-					.set_spatial_parent(&self.parent)
+					.set_spatial_parent(&self.root)
 					.unwrap();
 				if self.currently_shown {
 					self.grabbable_grow = Some(Tweener::quart_in_out(0.0001, 1.0, 0.25));
@@ -186,17 +192,16 @@ impl RootHandler for Single {
 				self.grabbable_shrink = None;
 				self.grabbable
 					.content_parent()
-					.set_position(Some(&self.parent), self.position)
+					.set_relative_transform(&self.root, Transform::from_translation(self.position))
 					.unwrap();
 				self.grabbable
 					.content_parent()
-					.set_rotation(Some(&self.parent), Quat::default())
+					.set_relative_transform(&self.root, Transform::from_rotation(Quat::default()))
 					.unwrap();
 				self.icon
-					.set_rotation(
-						None,
+					.set_local_transform(Transform::from_rotation(
 						Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
-					)
+					))
 					.unwrap();
 			}
 		} else if let Some(grabbable_grow) = &mut self.grabbable_grow {
@@ -204,31 +209,30 @@ impl RootHandler for Single {
 				let scale = grabbable_grow.move_by(info.delta);
 				self.grabbable
 					.content_parent()
-					.set_scale(Some(&self.parent), Vector3::from([scale; 3]))
+					.set_relative_transform(&self.root, Transform::from_scale([scale; 3]))
 					.unwrap();
 			} else {
 				self.grabbable
 					.content_parent()
-					.set_spatial_parent(&self.parent)
+					.set_spatial_parent(&self.root)
 					.unwrap();
 				self.grabbable_grow = None;
 			}
 		} else if self.grabbable.grab_action().actor_stopped() {
 			self.grabbable_shrink = Some(Tweener::quart_in_out(MODEL_SCALE, 0.0001, 0.25));
-			let Ok(distance_future) = self
-				.grabbable
-				.content_parent()
-				.get_position_rotation_scale(&self.parent)
-			else {
-				return;
-			};
 
 			let application = self.application.clone();
 			let space = self.content_parent().alias();
+			let root = self.root.alias();
 
 			//TODO: split the executable string for the args
 			tokio::task::spawn(async move {
-				let distance_vector = distance_future.await.ok().unwrap().0;
+				let distance_vector = space
+					.get_transform(&root)
+					.await
+					.unwrap()
+					.translation
+					.unwrap();
 				let distance = Vec3::from(distance_vector).length_squared();
 
 				if distance > ACTIVATION_DISTANCE {

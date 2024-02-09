@@ -10,10 +10,11 @@ use manifest_dir_macros::directory_relative_path;
 use protostar::xdg::{get_desktop_files, parse_desktop_file, DesktopFile};
 use stardust_xr_fusion::{
 	client::{Client, ClientState, FrameInfo, RootHandler},
-	core::values::Transform,
-	drawable::{MaterialParameter, Model, ResourceID},
+	core::values::ResourceID,
+	drawable::{MaterialParameter, Model, ModelPartAspect},
 	fields::BoxField,
 	node::NodeError,
+	spatial::{SpatialAspect, Transform},
 };
 use stardust_xr_molecules::{touch_plane::TouchPlane, Grabbable, GrabbableSettings, PointerMode};
 use std::f32::consts::PI;
@@ -126,10 +127,10 @@ struct Button {
 }
 impl Button {
 	fn new(client: &Client) -> Result<Self, NodeError> {
-		let field = BoxField::create(client.get_root(), Transform::default(), [APP_SIZE; 3])?;
+		let field = BoxField::create(client.get_root(), Transform::identity(), [APP_SIZE; 3])?;
 		let grabbable = Grabbable::create(
 			client.get_root(),
-			Transform::default(),
+			Transform::none(),
 			&field,
 			GrabbableSettings {
 				max_distance: 0.01,
@@ -141,7 +142,7 @@ impl Button {
 		field.set_spatial_parent(grabbable.content_parent())?;
 		let touch_plane = TouchPlane::create(
 			grabbable.content_parent(),
-			Transform::default(),
+			Transform::identity(),
 			[(APP_SIZE + PADDING) / 2.0; 2],
 			(APP_SIZE + PADDING) / 2.0,
 			0.0..1.0,

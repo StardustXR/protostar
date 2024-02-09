@@ -1,2 +1,13 @@
 [workspace]
 members = ["app_grid", "hexagon_launcher", "protostar", "single", "sirius"]
+
+[workspace.dependencies]
+tokio = { version = "1.32.0", features = ["rt", "tokio-macros", "sync"] }
+
+[workspace.dependencies.stardust-xr-fusion]
+git = "https://github.com/StardustXR/core.git"
+# path = "../../core/fusion"
+
+[workspace.dependencies.stardust-xr-molecules]
+git = "https://github.com/StardustXR/molecules.git"
+# path = "../../molecules"

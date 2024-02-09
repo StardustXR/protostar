@@ -46,11 +46,7 @@ impl Application {
 
 	pub fn launch(&self, launch_space: &Spatial) -> Result<(), NodeError> {
 		let client = launch_space.node().client()?;
-		let future_startup_token = client.state_token(&ClientState {
-			root: Some(launch_space.alias()),
-			..Default::default()
-		})?;
-		let future_connection_env = client.get_connection_environment()?;
+		let launch_space = launch_space.alias();
 
 		let executable = self
 			.desktop_file
@@ -58,8 +54,22 @@ impl Application {
 			.clone()
 			.ok_or(NodeError::DoesNotExist)?;
 		tokio::task::spawn(async move {
-			let Ok(startup_token) = future_startup_token.await else {return};
-			let Ok(connection_env) = future_connection_env.await else {return};
+			let Ok(startup_token) = client
+				.state_token(&ClientState {
+					root: Some(launch_space.alias()),
+					..Default::default()
+				})
+				.await
+			else {
+				return;
+			};
+
+			let Ok(future_connection_env) = client.get_connection_environment() else {
+				return;
+			};
+			let Ok(connection_env) = future_connection_env.await else {
+				return;
+			};
 			for (k, v) in connection_env.into_iter() {
 				std::env::set_var(k, v);
 			}

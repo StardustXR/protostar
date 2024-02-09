@@ -10,12 +10,14 @@ use protostar::{
 };
 use stardust_xr_fusion::{
 	client::{Client, ClientState, FrameInfo, RootHandler},
-	core::values::Transform,
-	drawable::{Alignment, Bounds, MaterialParameter, Model, ResourceID, Text, TextFit, TextStyle},
+	core::values::ResourceID,
+	drawable::{
+		MaterialParameter, Model, ModelPartAspect, Text, TextBounds, TextFit, TextStyle, XAlign,
+		YAlign,
+	},
 	fields::BoxField,
-	node::NodeError,
-	node::NodeType,
-	spatial::Spatial,
+	node::{NodeError, NodeType},
+	spatial::{Spatial, SpatialAspect, Transform},
 };
 use stardust_xr_molecules::{touch_plane::TouchPlane, Grabbable, GrabbableSettings};
 use std::{f32::consts::PI, path::PathBuf};
@@ -66,18 +68,18 @@ struct Sirius {
 }
 impl Sirius {
 	fn new(client: &Client, args: Args) -> Result<Self, NodeError> {
-		let root = Spatial::create(client.get_root(), Transform::default(), false).unwrap();
+		let root = Spatial::create(client.get_root(), Transform::identity(), false).unwrap();
 
-		let field = BoxField::create(&root, Transform::default(), [0.1; 3]).unwrap();
+		let field = BoxField::create(&root, Transform::identity(), [0.1; 3]).unwrap();
 		let grabbable = Grabbable::create(
 			&root,
-			Transform::default(),
+			Transform::identity(),
 			&field,
 			GrabbableSettings::default(),
 		)?;
 		let touch_plane = TouchPlane::create(
 			grabbable.content_parent(),
-			Transform::default(),
+			Transform::identity(),
 			[0.1; 2],
 			0.03,
 			1.0..0.0,
@@ -107,7 +109,7 @@ impl Sirius {
 
 		let model = Model::create(
 			grabbable.content_parent(),
-			Transform::default(),
+			Transform::identity(),
 			&ResourceID::new_namespaced("protostar", "button"),
 		)?;
 		field.set_spatial_parent(grabbable.content_parent())?;
@@ -150,17 +152,20 @@ impl RootHandler for Sirius {
 						}
 						println!("{}", starpos);
 						star.content_parent()
-							.set_position(
-								Some(self.grabbable.content_parent()),
-								[starpos, 0.1, 0.0],
+							.set_relative_transform(
+								self.grabbable.content_parent(),
+								Transform::from_translation([starpos, 0.1, 0.0]),
 							)
-							.ok();
+							.unwrap();
 					}
 				}
 				false => {
 					for star in &self.clients {
 						star.content_parent()
-							.set_position(Some(self.grabbable.content_parent()), [0.0; 3])
+							.set_relative_transform(
+								self.grabbable.content_parent(),
+								Transform::from_translation([0.0; 3]),
+							)
 							.ok();
 					}
 				}
@@ -261,12 +266,12 @@ impl App {
 		desktop_file: DesktopFile,
 	) -> Result<Self> {
 		let position = position.into();
-		let field = BoxField::create(parent, Transform::default(), [APP_SIZE; 3])?;
+		let field = BoxField::create(parent, Transform::identity(), [APP_SIZE; 3])?;
 		let application = Application::create(desktop_file)?;
 		let icon = application.icon(128, false);
 		let grabbable = Grabbable::create(
 			parent,
-			Transform::from_position(position),
+			Transform::from_translation(position),
 			&field,
 			GrabbableSettings {
 				max_distance: 0.01,
@@ -290,18 +295,21 @@ impl App {
 
 		let label_style = TextStyle {
 			character_height: APP_SIZE * 2.0,
-			bounds: Some(Bounds {
+			bounds: Some(TextBounds {
 				bounds: [1.0; 2].into(),
 				fit: TextFit::Wrap,
-				bounds_align: Alignment::XCenter | Alignment::YCenter,
+				anchor_align_x: XAlign::Center,
+				anchor_align_y: YAlign::Center,
 			}),
-			text_align: Alignment::Center.into(),
+
+			text_align_x: XAlign::Center,
+			text_align_y: YAlign::Center,
 			..Default::default()
 		};
 		let label = application.name().and_then(|name| {
 			Text::create(
 				&icon,
-				Transform::from_position_rotation(
+				Transform::from_translation_rotation(
 					[0.0, 0.1, -(APP_SIZE * 4.0)],
 					Quat::from_rotation_x(PI * 0.5),
 				),
@@ -349,7 +357,10 @@ impl App {
 				let scale = grabbable_move.move_by(info.delta);
 				self.grabbable
 					.content_parent()
-					.set_position(Some(&self.parent), Vec3::from(self.position) * scale)
+					.set_relative_transform(
+						&self.parent,
+						Transform::from_translation(Vec3::from(self.position) * scale),
+					)
 					.unwrap();
 			} else {
 				if grabbable_move.final_value() == 0.0001 {
@@ -366,7 +377,7 @@ impl App {
 				let scale = grabbable_shrink.move_by(info.delta);
 				self.grabbable
 					.content_parent()
-					.set_scale(Some(&self.parent), Vector3::from([scale; 3]))
+					.set_relative_transform(&self.parent, Transform::from_scale([scale; 3]))
 					.unwrap();
 			} else {
 				self.grabbable
@@ -381,17 +392,19 @@ impl App {
 				self.grabbable_shrink = None;
 				self.grabbable
 					.content_parent()
-					.set_position(Some(&self.parent), self.position)
+					.set_relative_transform(
+						&self.parent,
+						Transform::from_translation(self.position),
+					)
 					.unwrap();
 				self.grabbable
 					.content_parent()
-					.set_rotation(Some(&self.parent), Quat::default())
+					.set_relative_transform(&self.parent, Transform::from_rotation(Quat::default()))
 					.unwrap();
 				self.icon
-					.set_rotation(
-						None,
+					.set_local_transform(Transform::from_rotation(
 						Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
-					)
+					))
 					.unwrap();
 			}
 		} else if let Some(grabbable_grow) = &mut self.grabbable_grow {
@@ -399,7 +412,7 @@ impl App {
 				let scale = grabbable_grow.move_by(info.delta);
 				self.grabbable
 					.content_parent()
-					.set_scale(Some(&self.parent), Vector3::from([scale; 3]))
+					.set_relative_transform(&self.parent, Transform::from_scale([scale; 3]))
 					.unwrap();
 			} else {
 				self.grabbable
@@ -410,20 +423,19 @@ impl App {
 			}
 		} else if self.grabbable.grab_action().actor_stopped() {
 			self.grabbable_shrink = Some(Tweener::quart_in_out(APP_SIZE * 0.5, 0.0001, 0.25));
-			let Ok(distance_future) = self
-				.grabbable
-				.content_parent()
-				.get_position_rotation_scale(&self.parent)
-			else {
-				return;
-			};
 
 			let application = self.application.clone();
 			let space = self.content_parent().alias();
+			let parent = self.parent.alias();
 
 			//TODO: split the executable string for the args
 			tokio::task::spawn(async move {
-				let distance_vector = distance_future.await.ok().unwrap().0;
+				let distance_vector = space
+					.get_transform(&parent)
+					.await
+					.unwrap()
+					.translation
+					.unwrap();
 				let distance = Vec3::from(distance_vector).length_squared();
 
 				if distance > ACTIVATION_DISTANCE {

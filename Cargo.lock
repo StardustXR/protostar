@@ -142,7 +142,7 @@ dependencies = [
  "clap",
  "color-eyre",
  "color-rs",
- "glam",
+ "glam 0.24.2",
  "manifest-dir-macros",
  "mint",
  "protostar",
@@ -369,6 +369,15 @@ name = "colorchoice"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "acbf1af155f9b9ef647e42cdc158db4b64a1b61f743629225fde6f3e0be2a7c7"
+
+[[package]]
+name = "convert_case"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ec182b0ca2f35d8fc196cf3404988fd8b8c739a4d270ff118a398feb0cbec1ca"
+dependencies = [
+ "unicode-segmentation",
+]
 
 [[package]]
 name = "core-foundation-sys"
@@ -778,6 +787,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "glam"
+version = "0.25.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "151665d9be52f9bb40fc7966565d39666f2d1e69233571b71b87791c7e0528b3"
+dependencies = [
+ "mint",
+]
+
+[[package]]
 name = "global_counter"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -851,7 +869,7 @@ dependencies = [
  "clap",
  "color-eyre",
  "color-rs",
- "glam",
+ "glam 0.25.0",
  "manifest-dir-macros",
  "mint",
  "protostar",
@@ -996,6 +1014,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "kdl"
+version = "4.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "062c875482ccb676fd40c804a40e3824d4464c18c364547456d1c8e8e951ae47"
+dependencies = [
+ "miette",
+ "nom",
+ "thiserror",
+]
+
+[[package]]
 name = "kurbo"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1127,6 +1156,29 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5a634b1c61a95585bd15607c6ab0c4e5b226e695ff2800ba0cdccddf208c406c"
 dependencies = [
  "autocfg",
+]
+
+[[package]]
+name = "miette"
+version = "5.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "59bb584eaeeab6bd0226ccf3509a69d7936d148cf3d036ad350abe35e8c6856e"
+dependencies = [
+ "miette-derive",
+ "once_cell",
+ "thiserror",
+ "unicode-width",
+]
+
+[[package]]
+name = "miette-derive"
+version = "5.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "49e7bc1560b95a3c4a25d03de42fe76ca718ab92d1a22a55b9b4cf67b3ae635c"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.32",
 ]
 
 [[package]]
@@ -1508,9 +1560,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.66"
+version = "1.0.78"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "18fb31db3f9bddb2ea821cde30a9f70117e3f119938b5ee630b7403aa6e2ead9"
+checksum = "e2422ad645d89c99f8f3e6b88a9fdeca7fabeac836b1002371c4367c8f984aae"
 dependencies = [
  "unicode-ident",
 ]
@@ -1525,7 +1577,7 @@ dependencies = [
  "dirs 5.0.1",
  "ez-pixmap",
  "freedesktop-icons-greedy",
- "glam",
+ "glam 0.24.2",
  "image",
  "itertools 0.12.0",
  "lazy_static",
@@ -1560,9 +1612,9 @@ dependencies = [
 
 [[package]]
 name = "quote"
-version = "1.0.32"
+version = "1.0.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50f3b39ccfb720540debaa0164757101c08ecb8d326b15358ce76a62c7e85965"
+checksum = "291ec9ab5efd934aaf503a6466c5d5251535d108ee747472c3977cc5acc868ef"
 dependencies = [
  "proc-macro2",
 ]
@@ -1998,7 +2050,7 @@ dependencies = [
  "clap",
  "color-eyre",
  "color-rs",
- "glam",
+ "glam 0.24.2",
  "manifest-dir-macros",
  "mint",
  "protostar",
@@ -2022,7 +2074,7 @@ dependencies = [
  "clap",
  "color-eyre",
  "color-rs",
- "glam",
+ "glam 0.24.2",
  "manifest-dir-macros",
  "mint",
  "protostar",
@@ -2060,9 +2112,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "split-iter"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2f2b15926089e5526bb2dd738a2eb0e59034356e06eb71e1cd912358c0e62c4d"
+
+[[package]]
 name = "stardust-xr"
 version = "0.14.1"
-source = "git+https://github.com/StardustXR/core.git#975331f9739a9f6cb90ec75813b7720c86225848"
+source = "git+https://github.com/StardustXR/core.git#ddb2953f6acac01ee9c4ccfae2d4b7eb959a07a2"
 dependencies = [
  "cluFlock",
  "color-rs",
@@ -2082,7 +2140,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-fusion"
 version = "0.43.2"
-source = "git+https://github.com/StardustXR/core.git#975331f9739a9f6cb90ec75813b7720c86225848"
+source = "git+https://github.com/StardustXR/core.git#ddb2953f6acac01ee9c4ccfae2d4b7eb959a07a2"
 dependencies = [
  "color-eyre",
  "color-rs",
@@ -2096,18 +2154,32 @@ dependencies = [
  "serde_repr",
  "serde_with",
  "stardust-xr",
+ "stardust-xr-fusion-codegen",
  "thiserror",
  "tokio",
  "tracing",
 ]
 
 [[package]]
+name = "stardust-xr-fusion-codegen"
+version = "0.1.0"
+source = "git+https://github.com/StardustXR/core.git#ddb2953f6acac01ee9c4ccfae2d4b7eb959a07a2"
+dependencies = [
+ "convert_case",
+ "mint",
+ "proc-macro2",
+ "quote",
+ "split-iter",
+ "stardust-xr-schemas",
+]
+
+[[package]]
 name = "stardust-xr-molecules"
 version = "0.29.0"
-source = "git+https://github.com/StardustXR/molecules.git#2e60ed7f75a1a79d89b83237dea4d208bc1ab01c"
+source = "git+https://github.com/StardustXR/molecules.git#8681d8f60bf49bcb73e5fb32c89c4f441b94533b"
 dependencies = [
  "color-rs",
- "glam",
+ "glam 0.24.2",
  "lazy_static",
  "lerp",
  "map-range",
@@ -2117,17 +2189,17 @@ dependencies = [
  "stardust-xr-fusion",
  "tokio",
  "tracing",
- "xkbcommon",
 ]
 
 [[package]]
 name = "stardust-xr-schemas"
 version = "1.5.3"
-source = "git+https://github.com/StardustXR/core.git#975331f9739a9f6cb90ec75813b7720c86225848"
+source = "git+https://github.com/StardustXR/core.git#ddb2953f6acac01ee9c4ccfae2d4b7eb959a07a2"
 dependencies = [
  "flatbuffers",
  "flexbuffers",
- "glam",
+ "glam 0.24.2",
+ "kdl",
  "manifest-dir-macros",
  "mint",
  "ouroboros",
@@ -2322,7 +2394,6 @@ dependencies = [
  "bytes",
  "libc",
  "mio",
- "num_cpus",
  "parking_lot 0.12.1",
  "pin-project-lite",
  "signal-hook-registry",
@@ -2508,10 +2579,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d817255e1bed6dfd4ca47258685d14d2bdcfbc64fdc9e3819bd5848057b8ecc"
 
 [[package]]
+name = "unicode-segmentation"
+version = "1.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d4c87d22b6e3f4a18d4d40ef354e97c90fcb14dd91d7dc0aa9d8a1172ebf7202"
+
+[[package]]
 name = "unicode-vo"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b1d386ff53b415b7fe27b50bb44679e2cc4660272694b7b6f3326d8480823a94"
+
+[[package]]
+name = "unicode-width"
+version = "0.1.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e51733f11c9c4f72aa0c160008246859e340b00807569a0da0e7a1079b27ba85"
 
 [[package]]
 name = "ustr"
@@ -2772,22 +2855,6 @@ name = "xdg"
 version = "2.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "213b7324336b53d2414b2db8537e56544d981803139155afa84f76eeebb7a546"
-
-[[package]]
-name = "xkbcommon"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c286371c44b3572d19b09196c129a8fff47d7704d6494daefb44fec10f0278ab"
-dependencies = [
- "libc",
- "xkeysym",
-]
-
-[[package]]
-name = "xkeysym"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "054a8e68b76250b253f671d1268cb7f1ae089ec35e195b2efb2a4e9a836d0621"
 
 [[package]]
 name = "xmlparser"
