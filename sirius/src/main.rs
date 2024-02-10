@@ -275,6 +275,7 @@ impl App {
 			&field,
 			GrabbableSettings {
 				max_distance: 0.01,
+				zoneable: false,
 				..Default::default()
 			},
 		)?;

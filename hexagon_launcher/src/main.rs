@@ -136,6 +136,7 @@ impl Button {
 				max_distance: 0.01,
 				pointer_mode: PointerMode::Align,
 				magnet: false,
+				zoneable: true,
 				..Default::default()
 			},
 		)?;
