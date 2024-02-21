@@ -20,7 +20,7 @@ use stardust_xr_molecules::{Grabbable, GrabbableSettings};
 use std::f32::consts::PI;
 use tween::{QuartInOut, Tweener};
 
-use crate::{ACTIVATION_DISTANCE, APP_SIZE, DEFAULT_HEX_COLOR};
+use crate::{State, ACTIVATION_DISTANCE, APP_SIZE, DEFAULT_HEX_COLOR};
 
 // Model handling
 fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
@@ -65,13 +65,13 @@ pub struct App {
 	grabbable_shrink: Option<Tweener<f32, f64, QuartInOut>>,
 	grabbable_grow: Option<Tweener<f32, f64, QuartInOut>>,
 	grabbable_move: Option<Tweener<f32, f64, QuartInOut>>,
-	currently_shown: bool,
 }
 impl App {
 	pub fn create_from_desktop_file(
 		parent: &Spatial,
 		position: impl Into<Vector3<f32>>,
 		desktop_file: DesktopFile,
+		state: &State,
 	) -> Result<Self> {
 		let position = position.into();
 		let field = BoxField::create(parent, Transform::identity(), [APP_SIZE; 3])?;
@@ -87,6 +87,9 @@ impl App {
 				..Default::default()
 			},
 		)?;
+		if !state.unfurled {
+			grabbable.set_enabled(false)?;
+		}
 		grabbable.content_parent().set_spatial_parent(parent)?;
 		field.set_spatial_parent(grabbable.content_parent())?;
 		let icon = icon
@@ -101,6 +104,9 @@ impl App {
 					&ResourceID::new_namespaced("protostar", "hexagon/hexagon"),
 				)?)
 			})?;
+		if !state.unfurled {
+			icon.set_enabled(false)?;
+		}
 
 		let label_style = TextStyle {
 			character_height: APP_SIZE * 2.0,
@@ -127,6 +133,12 @@ impl App {
 			)
 			.ok()
 		});
+		if !state.unfurled {
+			if let Some(label) = label.as_ref() {
+				label.set_enabled(false)?;
+			}
+		}
+
 		Ok(App {
 			parent: parent.alias(),
 			position,
@@ -138,27 +150,25 @@ impl App {
 			grabbable_shrink: None,
 			grabbable_grow: None,
 			grabbable_move: None,
-			currently_shown: true,
 		})
 	}
 	pub fn content_parent(&self) -> &Spatial {
 		self.grabbable.content_parent()
 	}
-	pub fn toggle(&mut self) {
-		self.grabbable.set_enabled(!self.currently_shown).unwrap();
-		if self.currently_shown {
-			self.grabbable_move = Some(Tweener::quart_in_out(1.0, 0.0001, 0.25)); //TODO make the scale a parameter
-		} else {
+	pub fn apply_state(&mut self, state: &State) {
+		self.grabbable.set_enabled(state.unfurled).unwrap();
+		if state.unfurled {
 			self.icon.set_enabled(true).unwrap();
 			if let Some(label) = self.label.as_ref() {
 				label.set_enabled(true).unwrap()
 			}
 			self.grabbable_move = Some(Tweener::quart_in_out(0.0001, 1.0, 0.25));
+		} else {
+			self.grabbable_move = Some(Tweener::quart_in_out(1.0, 0.0001, 0.25)); //TODO make the scale a parameter
 		}
-		self.currently_shown = !self.currently_shown;
 	}
 
-	pub fn frame(&mut self, info: FrameInfo) {
+	pub fn frame(&mut self, info: FrameInfo, state: &State) {
 		let _ = self.grabbable.update(&info);
 
 		if let Some(grabbable_move) = &mut self.grabbable_move {
@@ -193,7 +203,7 @@ impl App {
 					.content_parent()
 					.set_spatial_parent(&self.parent)
 					.unwrap();
-				if self.currently_shown {
+				if state.unfurled {
 					self.grabbable_grow = Some(Tweener::quart_in_out(0.0001, 1.0, 0.25));
 					self.grabbable.cancel_angular_velocity();
 					self.grabbable.cancel_linear_velocity();

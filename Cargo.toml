@@ -3,6 +3,7 @@ members = ["app_grid", "hexagon_launcher", "protostar", "single", "sirius"]
 
 [workspace.dependencies]
 tokio = { version = "1.32.0", features = ["rt", "tokio-macros", "sync"] }
+serde = "1.0.197"
 
 [workspace.dependencies.stardust-xr-fusion]
 git = "https://github.com/StardustXR/core.git"

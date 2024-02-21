@@ -846,6 +846,7 @@ dependencies = [
  "manifest-dir-macros",
  "mint",
  "protostar",
+ "serde",
  "stardust-xr-fusion",
  "stardust-xr-molecules",
  "tokio",
@@ -1828,18 +1829,18 @@ checksum = "b0293b4b29daaf487284529cc2f5675b8e57c61f70167ba415a463651fd6a918"
 
 [[package]]
 name = "serde"
-version = "1.0.196"
+version = "1.0.197"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "870026e60fa08c69f064aa766c10f10b1d62db9ccd4d0abb206472bee0ce3b32"
+checksum = "3fb1c873e1b9b056a4dc4c0c198b24c3ffa059243875552b2bd0933b1aee4ce2"
 dependencies = [
  "serde_derive",
 ]
 
 [[package]]
 name = "serde_derive"
-version = "1.0.196"
+version = "1.0.197"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "33c85360c95e7d137454dc81d9a4ed2b8efd8fbe19cee57357b32b9771fccb67"
+checksum = "7eb0b34b42edc17f6b7cac84a52a1c5f0e1bb2227e997ca9011ea3dd34e8610b"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1974,6 +1975,7 @@ dependencies = [
  "manifest-dir-macros",
  "mint",
  "protostar",
+ "serde",
  "stardust-xr-fusion",
  "stardust-xr-molecules",
  "tokio",
@@ -2016,7 +2018,7 @@ checksum = "2f2b15926089e5526bb2dd738a2eb0e59034356e06eb71e1cd912358c0e62c4d"
 [[package]]
 name = "stardust-xr"
 version = "0.44.0"
-source = "git+https://github.com/StardustXR/core.git#6904244bda0346a9689358d5cd1b241108423656"
+source = "git+https://github.com/StardustXR/core.git#66f759f44e34caa12d1b76a8f058352b8cdeabe4"
 dependencies = [
  "cluFlock",
  "color-rs",
@@ -2036,7 +2038,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-fusion"
 version = "0.44.0"
-source = "git+https://github.com/StardustXR/core.git#6904244bda0346a9689358d5cd1b241108423656"
+source = "git+https://github.com/StardustXR/core.git#66f759f44e34caa12d1b76a8f058352b8cdeabe4"
 dependencies = [
  "color-eyre",
  "color-rs",
@@ -2056,7 +2058,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-fusion-codegen"
 version = "0.1.0"
-source = "git+https://github.com/StardustXR/core.git#6904244bda0346a9689358d5cd1b241108423656"
+source = "git+https://github.com/StardustXR/core.git#66f759f44e34caa12d1b76a8f058352b8cdeabe4"
 dependencies = [
  "convert_case",
  "mint",
@@ -2069,7 +2071,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-molecules"
 version = "0.44.0"
-source = "git+https://github.com/StardustXR/molecules.git#c861e5665536e45262510048f90afd4eab694132"
+source = "git+https://github.com/StardustXR/molecules.git#dffa22c302e730776876940f4dac39a526d601bc"
 dependencies = [
  "color-rs",
  "glam 0.25.0",
@@ -2087,7 +2089,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-schemas"
 version = "1.5.3"
-source = "git+https://github.com/StardustXR/core.git#6904244bda0346a9689358d5cd1b241108423656"
+source = "git+https://github.com/StardustXR/core.git#66f759f44e34caa12d1b76a8f058352b8cdeabe4"
 dependencies = [
  "flatbuffers",
  "flexbuffers",

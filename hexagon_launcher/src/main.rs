@@ -8,16 +8,17 @@ use glam::Quat;
 use hex::{HEX_CENTER, HEX_DIRECTION_VECTORS};
 use manifest_dir_macros::directory_relative_path;
 use protostar::xdg::{get_desktop_files, parse_desktop_file, DesktopFile};
+use serde::{Deserialize, Serialize};
 use stardust_xr_fusion::{
 	client::{Client, ClientState, FrameInfo, RootHandler},
-	core::values::ResourceID,
+	core::{schemas::flex::flexbuffers, values::ResourceID},
 	drawable::{MaterialParameter, Model, ModelPartAspect},
 	fields::BoxField,
-	node::NodeError,
-	spatial::{SpatialAspect, Transform},
+	node::{NodeError, NodeType},
+	spatial::{Spatial, SpatialAspect, Transform},
 };
 use stardust_xr_molecules::{touch_plane::TouchPlane, Grabbable, GrabbableSettings, PointerMode};
-use std::f32::consts::PI;
+use std::{f32::consts::PI, time::Duration};
 
 const APP_SIZE: f32 = 0.06;
 const PADDING: f32 = 0.005;
@@ -38,7 +39,7 @@ async fn main() -> Result<()> {
 	let (client, event_loop) = Client::connect_with_async_loop().await?;
 	client.set_base_prefixes(&[directory_relative_path!("res")]);
 
-	let _root = client.wrap_root(AppHexGrid::new(&client))?;
+	let _root = client.wrap_root(AppHexGrid::new(&client).await)?;
 
 	tokio::select! {
 		_ = tokio::signal::ctrl_c() => (),
@@ -47,13 +48,27 @@ async fn main() -> Result<()> {
 	Ok(())
 }
 
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct State {
+	unfurled: bool,
+}
+
 struct AppHexGrid {
+	movable_root: Spatial,
 	apps: Vec<App>,
 	button: Button,
+	state: State,
 }
 impl AppHexGrid {
-	fn new(client: &Client) -> Self {
-		let button = Button::new(client).unwrap();
+	async fn new(client: &Client) -> Self {
+		let state = flexbuffers::from_slice(&client.state().data).unwrap_or_default();
+
+		let movable_root =
+			Spatial::create(client.get_root(), Transform::identity(), false).unwrap();
+
+		let button = Button::new(client, &client.state()).unwrap();
+		tokio::time::sleep(Duration::from_millis(10)).await; // give it a bit of time to send the messages properly
+
 		let mut desktop_files: Vec<DesktopFile> = get_desktop_files()
 			.filter_map(|d| parse_desktop_file(d).ok())
 			.filter(|d| !d.no_display)
@@ -78,6 +93,7 @@ impl AppHexGrid {
 							button.grabbable.content_parent(),
 							hex.get_coords(),
 							desktop_files.pop().unwrap(),
+							&state,
 						)
 						.unwrap(),
 					);
@@ -86,7 +102,12 @@ impl AppHexGrid {
 			}
 			radius += 1;
 		}
-		AppHexGrid { apps, button }
+		AppHexGrid {
+			movable_root,
+			apps,
+			button,
+			state,
+		}
 	}
 }
 impl RootHandler for AppHexGrid {
@@ -99,8 +120,9 @@ impl RootHandler for AppHexGrid {
 				.unwrap()
 				.set_material_parameter("color", MaterialParameter::Color(BTN_SELECTED_COLOR))
 				.unwrap();
+			self.state.unfurled = !self.state.unfurled;
 			for app in &mut self.apps {
-				app.toggle();
+				app.apply_state(&self.state);
 			}
 		} else if self.button.touch_plane.touch_stopped() {
 			self.button
@@ -111,12 +133,27 @@ impl RootHandler for AppHexGrid {
 				.unwrap();
 		}
 		for app in &mut self.apps {
-			app.frame(info);
+			app.frame(info, &self.state);
 		}
 	}
 
 	fn save_state(&mut self) -> ClientState {
-		ClientState::default()
+		self.movable_root
+			.set_relative_transform(
+				self.button.grabbable.content_parent(),
+				Transform::from_translation([0.0; 3]),
+			)
+			.unwrap();
+		ClientState {
+			data: flexbuffers::to_vec(&self.state).unwrap(),
+			root: self.movable_root.alias(),
+			spatial_anchors: [(
+				"content_parent".to_string(),
+				self.button.grabbable.content_parent().alias(),
+			)]
+			.into_iter()
+			.collect(),
+		}
 	}
 }
 
@@ -126,7 +163,7 @@ struct Button {
 	model: Model,
 }
 impl Button {
-	fn new(client: &Client) -> Result<Self, NodeError> {
+	fn new(client: &Client, state: &ClientState) -> Result<Self, NodeError> {
 		let field = BoxField::create(client.get_root(), Transform::identity(), [APP_SIZE; 3])?;
 		let grabbable = Grabbable::create(
 			client.get_root(),
@@ -161,6 +198,11 @@ impl Button {
 		model
 			.model_part("Hex")?
 			.set_material_parameter("color", MaterialParameter::Color(BTN_COLOR))?;
+		if let Some(content_parent) = state.spatial_anchors.get("content_parent") {
+			grabbable
+				.content_parent()
+				.set_relative_transform(content_parent, Transform::identity())?;
+		}
 		Ok(Button {
 			touch_plane,
 			grabbable,

@@ -46,6 +46,7 @@ async fn main() -> Result<()> {
 }
 
 struct AppGrid {
+	root: Spatial,
 	apps: Vec<App>,
 	//style: TextStyle,
 }
@@ -70,7 +71,10 @@ impl AppGrid {
 				.ok()
 			})
 			.collect::<Vec<_>>();
-		AppGrid { apps }
+		AppGrid {
+			root: client.get_root().alias(),
+			apps,
+		}
 	}
 }
 impl RootHandler for AppGrid {
@@ -80,7 +84,7 @@ impl RootHandler for AppGrid {
 		}
 	}
 	fn save_state(&mut self) -> ClientState {
-		ClientState::default()
+		ClientState::from_root(&self.root)
 	}
 }
 

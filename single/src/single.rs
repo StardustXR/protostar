@@ -243,6 +243,6 @@ impl RootHandler for Single {
 	}
 
 	fn save_state(&mut self) -> ClientState {
-		ClientState::default()
+		ClientState::from_root(self.content_parent())
 	}
 }

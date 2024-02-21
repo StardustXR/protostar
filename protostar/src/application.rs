@@ -55,10 +55,7 @@ impl Application {
 			.ok_or(NodeError::DoesNotExist)?;
 		tokio::task::spawn(async move {
 			let Ok(startup_token) = client
-				.state_token(&ClientState {
-					root: Some(launch_space.alias()),
-					..Default::default()
-				})
+				.state_token(&ClientState::from_root(&launch_space))
 				.await
 			else {
 				return;

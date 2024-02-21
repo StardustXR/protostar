@@ -14,5 +14,6 @@ mint = "0.5.9"
 tween = "2.0.1"
 tracing-subscriber = "0.3.17"
 tokio = { workspace = true }
+serde = { workspace = true }
 stardust-xr-fusion = { workspace = true }
 stardust-xr-molecules = { workspace = true }

@@ -8,9 +8,10 @@ use protostar::{
 	application::Application,
 	xdg::{parse_desktop_file, DesktopFile, Icon, IconType},
 };
+use serde::{Deserialize, Serialize};
 use stardust_xr_fusion::{
 	client::{Client, ClientState, FrameInfo, RootHandler},
-	core::values::ResourceID,
+	core::{schemas::flex::flexbuffers, values::ResourceID},
 	drawable::{
 		MaterialParameter, Model, ModelPartAspect, Text, TextBounds, TextFit, TextStyle, XAlign,
 		YAlign,
@@ -59,11 +60,16 @@ async fn main() -> Result<()> {
 	Ok(())
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct State {
+	visible: bool,
+}
+
 struct Sirius {
 	touch_plane: TouchPlane,
 	model: Model,
 	clients: Vec<App>,
-	visibility: bool,
+	state: State,
 	grabbable: Grabbable,
 }
 impl Sirius {
@@ -113,13 +119,13 @@ impl Sirius {
 			&ResourceID::new_namespaced("protostar", "button"),
 		)?;
 		field.set_spatial_parent(grabbable.content_parent())?;
-		let visibility = false;
+		let state = State { visible: false };
 
 		Ok(Sirius {
 			touch_plane,
 			model,
 			clients,
-			visibility,
+			state,
 			grabbable,
 		})
 	}
@@ -141,8 +147,8 @@ impl RootHandler for Sirius {
 		self.touch_plane.update();
 		if self.touch_plane.touch_started() {
 			println!("Touch started");
-			self.visibility = !self.visibility;
-			match self.visibility {
+			self.state.visible = !self.state.visible;
+			match self.state.visible {
 				true => {
 					for (pos, star) in self.clients.iter().enumerate() {
 						let mut starpos = (pos as f32 + 1.0) / 10.0;
@@ -210,7 +216,16 @@ impl RootHandler for Sirius {
 	}
 
 	fn save_state(&mut self) -> ClientState {
-		ClientState::default()
+		ClientState {
+			data: flexbuffers::to_vec(&self.state).unwrap(),
+			root: self.grabbable.content_parent().alias(),
+			spatial_anchors: [(
+				"content_parent".to_string(),
+				self.grabbable.content_parent().alias(),
+			)]
+			.into_iter()
+			.collect(),
+		}
 	}
 }
 
