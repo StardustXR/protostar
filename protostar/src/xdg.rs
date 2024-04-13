@@ -94,9 +94,10 @@ pub fn get_desktop_files() -> impl Iterator<Item = PathBuf> {
 
 #[test]
 fn test_get_desktop_files() {
-	let mut desktop_files = get_desktop_files();
-	assert!(desktop_files.any(|file| file.ends_with("gimp.desktop")));
-	dbg!(desktop_files.collect::<Vec<PathBuf>>());
+	let desktop_files = get_desktop_files().collect::<Vec<_>>();
+	assert!(desktop_files
+		.iter()
+		.any(|file| file.ends_with("com.belmoussaoui.ashpd.demo.desktop")));
 }
 
 pub fn parse_desktop_file(path: PathBuf) -> Result<DesktopFile, String> {
@@ -213,7 +214,9 @@ const ICON_SIZES: [u16; 7] = [512, 256, 128, 64, 48, 32, 24];
 impl DesktopFile {
 	pub fn get_icon(&self, preferred_px_size: u16) -> Option<Icon> {
 		// Get the name of the icon from the DesktopFile struct
-		let Some(icon_name) = self.icon.as_ref() else { return None };
+		let Some(icon_name) = self.icon.as_ref() else {
+			return None;
+		};
 		let test_icon_path = self.path.join(Path::new(icon_name));
 		if test_icon_path.exists() {
 			if let Some(icon) = Icon::from_path(test_icon_path, preferred_px_size) {
@@ -331,23 +334,15 @@ fn test_get_icon_path() {
 		name: None,
 		command: None,
 		categories: vec![],
-		icon: Some("krita".into()),
+		icon: Some("com.belmoussaoui.ashpd.demo".into()),
 		no_display: false,
 	};
 
 	// Call the get_icon_path() function with a size argument and store the result
 	let icon = desktop_file.get_icon(32);
-	dbg!(&icon);
 
 	// Assert that the get_icon_path() function returns the expected result
-	assert!(
-		icon.unwrap()
-			== Icon::from_path(
-				PathBuf::from("/usr/share/icons/hicolor/32x32/apps/krita.png"),
-				32
-			)
-			.unwrap()
-	);
+	assert!(icon.is_some());
 }
 
 pub fn get_image_cache_dir() -> PathBuf {

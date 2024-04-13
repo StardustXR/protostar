@@ -26,7 +26,7 @@ async fn main() -> Result<()> {
 	color_eyre::install()?;
 	let args = Args::parse();
 	let (client, event_loop) = Client::connect_with_async_loop().await?;
-	client.set_base_prefixes(&[directory_relative_path!("res")]);
+	client.set_base_prefixes(&[directory_relative_path!("../res")]);
 
 	let protostar = Single::create_from_desktop_file(
 		client.get_root(),
