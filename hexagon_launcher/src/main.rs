@@ -13,7 +13,6 @@ use stardust_xr_fusion::{
 	client::{Client, ClientState, FrameInfo, RootHandler},
 	core::{schemas::flex::flexbuffers, values::ResourceID},
 	drawable::{MaterialParameter, Model, ModelPartAspect},
-	fields::BoxField,
 	node::{NodeError, NodeType},
 	spatial::{Spatial, SpatialAspect, Transform},
 };
@@ -44,7 +43,7 @@ async fn main() -> Result<()> {
 	tokio::select! {
 		_ = tokio::signal::ctrl_c() => (),
 		e = event_loop => e??,
-	};
+	}
 	Ok(())
 }
 
@@ -164,11 +163,18 @@ struct Button {
 }
 impl Button {
 	fn new(client: &Client, state: &ClientState) -> Result<Self, NodeError> {
-		let field = BoxField::create(client.get_root(), Transform::identity(), [APP_SIZE; 3])?;
+		let touch_plane = TouchPlane::create(
+			client.get_root(),
+			Transform::identity(),
+			[(APP_SIZE + PADDING) / 2.0; 2],
+			(APP_SIZE + PADDING) / 2.0,
+			0.0..1.0,
+			0.0..1.0,
+		)?;
 		let grabbable = Grabbable::create(
 			client.get_root(),
 			Transform::none(),
-			&field,
+			&touch_plane.field(),
 			GrabbableSettings {
 				max_distance: 0.01,
 				pointer_mode: PointerMode::Align,
@@ -177,15 +183,9 @@ impl Button {
 				..Default::default()
 			},
 		)?;
-		field.set_spatial_parent(grabbable.content_parent())?;
-		let touch_plane = TouchPlane::create(
-			grabbable.content_parent(),
-			Transform::identity(),
-			[(APP_SIZE + PADDING) / 2.0; 2],
-			(APP_SIZE + PADDING) / 2.0,
-			0.0..1.0,
-			0.0..1.0,
-		)?;
+		touch_plane
+			.root()
+			.set_spatial_parent(grabbable.content_parent())?;
 
 		let model = Model::create(
 			grabbable.content_parent(),
