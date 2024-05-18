@@ -1,22 +1,20 @@
-use color::rgba_linear;
 use color_eyre::eyre::Result;
 use glam::{Quat, Vec3};
 use manifest_dir_macros::directory_relative_path;
-use mint::Vector3;
 use protostar::{
 	application::Application,
 	xdg::{get_desktop_files, parse_desktop_file, DesktopFile, Icon, IconType},
 };
 use stardust_xr_fusion::{
 	client::{Client, ClientState, FrameInfo, RootHandler},
-	core::values::ResourceID,
+	core::values::{color::rgba_linear, ResourceID, Vector3},
 	drawable::{
 		MaterialParameter, Model, ModelPartAspect, Text, TextBounds, TextFit, TextStyle, XAlign,
 		YAlign,
 	},
 	fields::BoxField,
 	node::NodeType,
-	spatial::{Spatial, SpatialAspect, Transform},
+	spatial::{Spatial, SpatialAspect, SpatialRefAspect, Transform},
 };
 use stardust_xr_molecules::{Grabbable, GrabbableSettings};
 use std::f32::consts::PI;

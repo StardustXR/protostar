@@ -1,20 +1,19 @@
 use color_eyre::eyre::Result;
 use glam::{EulerRot, Quat, Vec3};
-use mint::Vector3;
 use protostar::{
 	application::Application,
 	xdg::{DesktopFile, Icon, IconType},
 };
 use stardust_xr_fusion::{
 	client::FrameInfo,
-	core::values::ResourceID,
+	core::values::{ResourceID, Vector3},
 	drawable::{
 		MaterialParameter, Model, ModelPartAspect, Text, TextBounds, TextFit, TextStyle, XAlign,
 		YAlign,
 	},
 	fields::BoxField,
 	node::NodeType,
-	spatial::{Spatial, SpatialAspect, Transform},
+	spatial::{Spatial, SpatialAspect, SpatialRefAspect, Transform},
 };
 use stardust_xr_molecules::{Grabbable, GrabbableSettings};
 use std::f32::consts::PI;

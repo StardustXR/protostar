@@ -2,7 +2,6 @@ pub mod app;
 pub mod hex;
 
 use app::App;
-use color::{color_space::LinearRgb, rgba_linear, Rgba};
 use color_eyre::eyre::Result;
 use glam::Quat;
 use hex::{HEX_CENTER, HEX_DIRECTION_VECTORS};
@@ -11,12 +10,21 @@ use protostar::xdg::{get_desktop_files, parse_desktop_file, DesktopFile};
 use serde::{Deserialize, Serialize};
 use stardust_xr_fusion::{
 	client::{Client, ClientState, FrameInfo, RootHandler},
-	core::{schemas::flex::flexbuffers, values::ResourceID},
+	core::{
+		schemas::flex::flexbuffers,
+		values::{
+			color::{color_space::LinearRgb, rgba_linear, Rgba},
+			ResourceID,
+		},
+	},
 	drawable::{MaterialParameter, Model, ModelPartAspect},
 	node::{NodeError, NodeType},
 	spatial::{Spatial, SpatialAspect, Transform},
 };
-use stardust_xr_molecules::{touch_plane::TouchPlane, Grabbable, GrabbableSettings, PointerMode};
+use stardust_xr_molecules::{
+	button::{Button, ButtonSettings},
+	Grabbable, GrabbableSettings, PointerMode,
+};
 use std::{f32::consts::PI, time::Duration};
 
 const APP_SIZE: f32 = 0.06;
@@ -55,7 +63,7 @@ pub struct State {
 struct AppHexGrid {
 	movable_root: Spatial,
 	apps: Vec<App>,
-	button: Button,
+	button: CenterButton,
 	state: State,
 }
 impl AppHexGrid {
@@ -65,7 +73,7 @@ impl AppHexGrid {
 		let movable_root =
 			Spatial::create(client.get_root(), Transform::identity(), false).unwrap();
 
-		let button = Button::new(client, &client.state()).unwrap();
+		let button = CenterButton::new(client, &client.state()).unwrap();
 		tokio::time::sleep(Duration::from_millis(10)).await; // give it a bit of time to send the messages properly
 
 		let mut desktop_files: Vec<DesktopFile> = get_desktop_files()
@@ -112,7 +120,7 @@ impl AppHexGrid {
 impl RootHandler for AppHexGrid {
 	fn frame(&mut self, info: FrameInfo) {
 		self.button.frame(info);
-		if self.button.touch_plane.touch_started() {
+		if self.button.button.pressed() {
 			self.button
 				.model
 				.model_part("Hex")
@@ -123,7 +131,7 @@ impl RootHandler for AppHexGrid {
 			for app in &mut self.apps {
 				app.apply_state(&self.state);
 			}
-		} else if self.button.touch_plane.touch_stopped() {
+		} else if self.button.button.released() {
 			self.button
 				.model
 				.model_part("Hex")
@@ -156,34 +164,36 @@ impl RootHandler for AppHexGrid {
 	}
 }
 
-struct Button {
-	touch_plane: TouchPlane,
+struct CenterButton {
+	button: Button,
 	grabbable: Grabbable,
 	model: Model,
 }
-impl Button {
+impl CenterButton {
 	fn new(client: &Client, state: &ClientState) -> Result<Self, NodeError> {
-		let touch_plane = TouchPlane::create(
+		// (APP_SIZE + PADDING) / 2.0,
+		let button = Button::create(
 			client.get_root(),
 			Transform::identity(),
 			[(APP_SIZE + PADDING) / 2.0; 2],
-			(APP_SIZE + PADDING) / 2.0,
-			0.0..1.0,
-			0.0..1.0,
+			ButtonSettings {
+				visuals: None,
+				..Default::default()
+			},
 		)?;
 		let grabbable = Grabbable::create(
 			client.get_root(),
 			Transform::none(),
-			&touch_plane.field(),
+			&button.touch_plane().field(),
 			GrabbableSettings {
-				max_distance: 0.01,
+				max_distance: 0.025,
 				pointer_mode: PointerMode::Align,
 				magnet: false,
-				zoneable: true,
 				..Default::default()
 			},
 		)?;
-		touch_plane
+		button
+			.touch_plane()
 			.root()
 			.set_spatial_parent(grabbable.content_parent())?;
 
@@ -203,8 +213,8 @@ impl Button {
 				.content_parent()
 				.set_relative_transform(content_parent, Transform::identity())?;
 		}
-		Ok(Button {
-			touch_plane,
+		Ok(CenterButton {
+			button,
 			grabbable,
 			model,
 		})
@@ -212,12 +222,6 @@ impl Button {
 
 	fn frame(&mut self, info: FrameInfo) {
 		let _ = self.grabbable.update(&info);
-		if self.grabbable.grab_action().actor_started() {
-			let _ = self.touch_plane.set_enabled(false);
-		}
-		if self.grabbable.grab_action().actor_stopped() {
-			let _ = self.touch_plane.set_enabled(true);
-		}
-		self.touch_plane.update();
+		self.button.update();
 	}
 }

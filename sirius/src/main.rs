@@ -1,9 +1,7 @@
 use clap::{self, Parser};
-use color::rgba_linear;
 use color_eyre::eyre::Result;
 use glam::{Quat, Vec3};
 use manifest_dir_macros::directory_relative_path;
-use mint::Vector3;
 use protostar::{
 	application::Application,
 	xdg::{parse_desktop_file, DesktopFile, Icon, IconType},
@@ -11,16 +9,22 @@ use protostar::{
 use serde::{Deserialize, Serialize};
 use stardust_xr_fusion::{
 	client::{Client, ClientState, FrameInfo, RootHandler},
-	core::{schemas::flex::flexbuffers, values::ResourceID},
+	core::{
+		schemas::flex::flexbuffers,
+		values::{color::rgba_linear, ResourceID, Vector3},
+	},
 	drawable::{
 		MaterialParameter, Model, ModelPartAspect, Text, TextBounds, TextFit, TextStyle, XAlign,
 		YAlign,
 	},
 	fields::BoxField,
 	node::{NodeError, NodeType},
-	spatial::{Spatial, SpatialAspect, Transform},
+	spatial::{Spatial, SpatialAspect, SpatialRefAspect, Transform},
 };
-use stardust_xr_molecules::{touch_plane::TouchPlane, Grabbable, GrabbableSettings};
+use stardust_xr_molecules::{
+	button::{Button, ButtonSettings},
+	Grabbable, GrabbableSettings,
+};
 use std::{f32::consts::PI, path::PathBuf};
 
 use tween::{QuartInOut, Tweener};
@@ -66,7 +70,7 @@ struct State {
 }
 
 struct Sirius {
-	touch_plane: TouchPlane,
+	button: Button,
 	model: Model,
 	clients: Vec<App>,
 	state: State,
@@ -83,13 +87,11 @@ impl Sirius {
 			&field,
 			GrabbableSettings::default(),
 		)?;
-		let touch_plane = TouchPlane::create(
+		let button = Button::create(
 			grabbable.content_parent(),
 			Transform::identity(),
 			[0.1; 2],
-			0.03,
-			1.0..0.0,
-			1.0..0.0,
+			ButtonSettings::default(),
 		)?;
 
 		let walkdir = WalkDir::new(args.apps_directory.canonicalize().unwrap());
@@ -122,7 +124,7 @@ impl Sirius {
 		let state = State { visible: false };
 
 		Ok(Sirius {
-			touch_plane,
+			button,
 			model,
 			clients,
 			state,
@@ -144,8 +146,8 @@ impl RootHandler for Sirius {
 		}
 
 		self.grabbable.update(&info).unwrap();
-		self.touch_plane.update();
-		if self.touch_plane.touch_started() {
+		self.button.update();
+		if self.button.pressed() {
 			println!("Touch started");
 			self.state.visible = !self.state.visible;
 			match self.state.visible {
@@ -194,7 +196,7 @@ impl RootHandler for Sirius {
 				.unwrap();
 		}
 
-		if self.touch_plane.touch_stopped() {
+		if self.button.released() {
 			println!("Touch ended");
 			self.model
 				.model_part("?????")
