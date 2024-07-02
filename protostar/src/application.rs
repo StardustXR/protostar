@@ -2,9 +2,9 @@ use crate::xdg::{DesktopFile, Icon, IconType};
 use nix::libc::setsid;
 use regex::Regex;
 use stardust_xr_fusion::{
-	client::ClientState,
-	node::{NodeError, NodeType},
-	spatial::Spatial,
+	node::{NodeError, NodeResult},
+	root::{ClientState, RootAspect},
+	spatial::SpatialRefAspect,
 };
 use std::{
 	os::unix::process::CommandExt,
@@ -44,7 +44,7 @@ impl Application {
 		icon.and_then(|i| i.cached_process(preferred_px_size).ok())
 	}
 
-	pub fn launch(&self, launch_space: &Spatial) -> Result<(), NodeError> {
+	pub fn launch(&self, launch_space: &impl SpatialRefAspect) -> NodeResult<()> {
 		let client = launch_space.node().client()?;
 		let launch_space = launch_space.alias();
 
@@ -55,16 +55,14 @@ impl Application {
 			.ok_or(NodeError::DoesNotExist)?;
 		tokio::task::spawn(async move {
 			let Ok(startup_token) = client
-				.state_token(&ClientState::from_root(&launch_space))
+				.get_root()
+				.generate_state_token(ClientState::from_root(&launch_space).unwrap())
 				.await
 			else {
 				return;
 			};
 
-			let Ok(future_connection_env) = client.get_connection_environment() else {
-				return;
-			};
-			let Ok(connection_env) = future_connection_env.await else {
+			let Ok(connection_env) = client.get_root().get_connection_environment().await else {
 				return;
 			};
 			for (k, v) in connection_env.into_iter() {

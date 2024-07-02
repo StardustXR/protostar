@@ -7,8 +7,8 @@ serde = "1.0.197"
 
 [workspace.dependencies.stardust-xr-fusion]
 git = "https://github.com/StardustXR/core.git"
-# path = "../../core/fusion"
+branch = "dev"
 
 [workspace.dependencies.stardust-xr-molecules]
 git = "https://github.com/StardustXR/molecules.git"
-# path = "../../molecules"
+branch = "dev"

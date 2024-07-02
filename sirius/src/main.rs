@@ -8,17 +8,15 @@ use protostar::{
 };
 use serde::{Deserialize, Serialize};
 use stardust_xr_fusion::{
-	client::{Client, ClientState, FrameInfo, RootHandler},
-	core::{
-		schemas::flex::flexbuffers,
-		values::{color::rgba_linear, ResourceID, Vector3},
-	},
+	client::Client,
+	core::values::{color::rgba_linear, ResourceID, Vector3},
 	drawable::{
 		MaterialParameter, Model, ModelPartAspect, Text, TextBounds, TextFit, TextStyle, XAlign,
 		YAlign,
 	},
-	fields::BoxField,
+	fields::{Field, Shape},
 	node::{NodeError, NodeType},
+	root::{ClientState, FrameInfo, RootAspect, RootHandler},
 	spatial::{Spatial, SpatialAspect, SpatialRefAspect, Transform},
 };
 use stardust_xr_molecules::{
@@ -53,9 +51,12 @@ async fn main() -> Result<()> {
 	}
 
 	let (client, event_loop) = Client::connect_with_async_loop().await?;
-	client.set_base_prefixes(&[directory_relative_path!("../res")]);
+	client.set_base_prefixes(&[directory_relative_path!("../res")])?;
 
-	let _wrapped_root = client.wrap_root(Sirius::new(&client, args)?)?;
+	let _wrapped_root = client
+		.get_root()
+		.alias()
+		.wrap(Sirius::new(&client, args)?)?;
 
 	tokio::select! {
 		_ = tokio::signal::ctrl_c() => (),
@@ -64,7 +65,7 @@ async fn main() -> Result<()> {
 	Ok(())
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct State {
 	visible: bool,
 }
@@ -80,7 +81,8 @@ impl Sirius {
 	fn new(client: &Client, args: Args) -> Result<Self, NodeError> {
 		let root = Spatial::create(client.get_root(), Transform::identity(), false).unwrap();
 
-		let field = BoxField::create(&root, Transform::identity(), [0.1; 3]).unwrap();
+		let field =
+			Field::create(&root, Transform::identity(), Shape::Box([0.1; 3].into())).unwrap();
 		let grabbable = Grabbable::create(
 			&root,
 			Transform::identity(),
@@ -142,7 +144,7 @@ impl Sirius {
 impl RootHandler for Sirius {
 	fn frame(&mut self, info: FrameInfo) {
 		for app in &mut self.clients {
-			app.frame(info);
+			app.frame(&info);
 		}
 
 		self.grabbable.update(&info).unwrap();
@@ -179,7 +181,7 @@ impl RootHandler for Sirius {
 				}
 			}
 			self.model
-				.model_part("?????")
+				.part("?????")
 				.unwrap()
 				.set_material_parameter(
 					"color",
@@ -187,7 +189,7 @@ impl RootHandler for Sirius {
 				)
 				.unwrap();
 			self.model
-				.model_part("?????")
+				.part("?????")
 				.unwrap()
 				.set_material_parameter(
 					"emission_factor",
@@ -199,7 +201,7 @@ impl RootHandler for Sirius {
 		if self.button.released() {
 			println!("Touch ended");
 			self.model
-				.model_part("?????")
+				.part("?????")
 				.unwrap()
 				.set_material_parameter(
 					"color",
@@ -207,7 +209,7 @@ impl RootHandler for Sirius {
 				)
 				.unwrap();
 			self.model
-				.model_part("?????")
+				.part("?????")
 				.unwrap()
 				.set_material_parameter(
 					"emission_factor",
@@ -217,17 +219,17 @@ impl RootHandler for Sirius {
 		}
 	}
 
-	fn save_state(&mut self) -> ClientState {
-		ClientState {
-			data: flexbuffers::to_vec(&self.state).unwrap(),
-			root: self.grabbable.content_parent().alias(),
-			spatial_anchors: [(
+	fn save_state(&mut self) -> Result<ClientState> {
+		ClientState::new(
+			Some(self.state.clone()),
+			self.grabbable.content_parent(),
+			[(
 				"content_parent".to_string(),
-				self.grabbable.content_parent().alias(),
+				self.grabbable.content_parent(),
 			)]
 			.into_iter()
 			.collect(),
-		}
+		)
 	}
 }
 
@@ -244,11 +246,11 @@ fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
 				t,
 				&ResourceID::new_namespaced("protostar", "hexagon/hexagon"),
 			)?;
-			model.model_part("Hex")?.set_material_parameter(
+			model.part("Hex")?.set_material_parameter(
 				"color",
 				MaterialParameter::Color(rgba_linear!(0.0, 1.0, 1.0, 1.0)),
 			)?;
-			model.model_part("Icon")?.set_material_parameter(
+			model.part("Icon")?.set_material_parameter(
 				"diffuse",
 				MaterialParameter::Texture(ResourceID::Direct(icon.path.clone())),
 			)?;
@@ -268,7 +270,7 @@ pub struct App {
 	parent: Spatial,
 	position: Vector3<f32>,
 	grabbable: Grabbable,
-	_field: BoxField,
+	_field: Field,
 	icon: Model,
 	label: Option<Text>,
 	grabbable_shrink: Option<Tweener<f32, f64, QuartInOut>>,
@@ -283,7 +285,11 @@ impl App {
 		desktop_file: DesktopFile,
 	) -> Result<Self> {
 		let position = position.into();
-		let field = BoxField::create(parent, Transform::identity(), [APP_SIZE; 3])?;
+		let field = Field::create(
+			parent,
+			Transform::identity(),
+			Shape::Box([APP_SIZE; 3].into()),
+		)?;
 		let application = Application::create(desktop_file)?;
 		let icon = application.icon(128, false);
 		let grabbable = Grabbable::create(
@@ -367,12 +373,12 @@ impl App {
 		self.currently_shown = !self.currently_shown;
 	}
 
-	fn frame(&mut self, info: FrameInfo) {
+	fn frame(&mut self, info: &FrameInfo) {
 		let _ = self.grabbable.update(&info);
 
 		if let Some(grabbable_move) = &mut self.grabbable_move {
 			if !grabbable_move.is_finished() {
-				let scale = grabbable_move.move_by(info.delta);
+				let scale = grabbable_move.move_by(info.delta.into());
 				self.grabbable
 					.content_parent()
 					.set_relative_transform(
@@ -392,7 +398,7 @@ impl App {
 		}
 		if let Some(grabbable_shrink) = &mut self.grabbable_shrink {
 			if !grabbable_shrink.is_finished() {
-				let scale = grabbable_shrink.move_by(info.delta);
+				let scale = grabbable_shrink.move_by(info.delta.into());
 				self.grabbable
 					.content_parent()
 					.set_relative_transform(&self.parent, Transform::from_scale([scale; 3]))
@@ -427,7 +433,7 @@ impl App {
 			}
 		} else if let Some(grabbable_grow) = &mut self.grabbable_grow {
 			if !grabbable_grow.is_finished() {
-				let scale = grabbable_grow.move_by(info.delta);
+				let scale = grabbable_grow.move_by(info.delta.into());
 				self.grabbable
 					.content_parent()
 					.set_relative_transform(&self.parent, Transform::from_scale([scale; 3]))

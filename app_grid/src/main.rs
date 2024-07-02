@@ -6,14 +6,15 @@ use protostar::{
 	xdg::{get_desktop_files, parse_desktop_file, DesktopFile, Icon, IconType},
 };
 use stardust_xr_fusion::{
-	client::{Client, ClientState, FrameInfo, RootHandler},
+	client::Client,
 	core::values::{color::rgba_linear, ResourceID, Vector3},
 	drawable::{
 		MaterialParameter, Model, ModelPartAspect, Text, TextBounds, TextFit, TextStyle, XAlign,
 		YAlign,
 	},
-	fields::BoxField,
+	fields::{Field, Shape},
 	node::NodeType,
+	root::{ClientState, FrameInfo, RootAspect, RootHandler},
 	spatial::{Spatial, SpatialAspect, SpatialRefAspect, Transform},
 };
 use stardust_xr_molecules::{Grabbable, GrabbableSettings};
@@ -32,9 +33,11 @@ async fn main() -> Result<()> {
 		.pretty()
 		.init();
 	let (client, event_loop) = Client::connect_with_async_loop().await?;
-	client.set_base_prefixes(&[directory_relative_path!("../res")]);
+	client
+		.set_base_prefixes(&[directory_relative_path!("../res")])
+		.unwrap();
 
-	let _root = client.wrap_root(AppGrid::new(&client))?;
+	let _root = client.get_root().alias().wrap(AppGrid::new(&client))?;
 
 	tokio::select! {
 		_ = tokio::signal::ctrl_c() => (),
@@ -44,7 +47,6 @@ async fn main() -> Result<()> {
 }
 
 struct AppGrid {
-	root: Spatial,
 	apps: Vec<App>,
 	//style: TextStyle,
 }
@@ -69,20 +71,17 @@ impl AppGrid {
 				.ok()
 			})
 			.collect::<Vec<_>>();
-		AppGrid {
-			root: client.get_root().alias(),
-			apps,
-		}
+		AppGrid { apps }
 	}
 }
 impl RootHandler for AppGrid {
 	fn frame(&mut self, info: FrameInfo) {
 		for app in &mut self.apps {
-			app.frame(info);
+			app.frame(&info);
 		}
 	}
-	fn save_state(&mut self) -> ClientState {
-		ClientState::from_root(&self.root)
+	fn save_state(&mut self) -> Result<ClientState> {
+		Ok(ClientState::default())
 	}
 }
 
@@ -99,11 +98,11 @@ fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
 				Transform::from_rotation(Quat::from_rotation_y(PI)),
 				&ResourceID::new_namespaced("protostar", "cartridge"),
 			)?;
-			model.model_part("Cartridge")?.set_material_parameter(
+			model.part("Cartridge")?.set_material_parameter(
 				"color",
 				MaterialParameter::Color(rgba_linear!(0.0, 1.0, 1.0, 1.0)),
 			)?;
-			model.model_part("Icon")?.set_material_parameter(
+			model.part("Icon")?.set_material_parameter(
 				"diffuse",
 				MaterialParameter::Texture(ResourceID::Direct(icon.path.clone())),
 			)?;
@@ -122,18 +121,18 @@ pub struct App {
 	root: Spatial,
 	application: Application,
 	grabbable: Grabbable,
-	_field: BoxField,
+	_field: Field,
 	_icon: Model,
 	_label: Option<Text>,
 }
 impl App {
 	pub fn create_from_desktop_file(
-		parent: &impl SpatialAspect,
+		parent: &impl SpatialRefAspect,
 		position: impl Into<Vector3<f32>>,
 		desktop_file: DesktopFile,
 	) -> Result<Self> {
 		let root = Spatial::create(parent, Transform::from_translation(position), false)?;
-		let field = BoxField::create(&root, Transform::none(), [APP_SIZE; 3])?;
+		let field = Field::create(&root, Transform::none(), Shape::Box([APP_SIZE; 3].into()))?;
 		let application = Application::create(desktop_file)?;
 		let icon = application.icon(128, true);
 		let grabbable = Grabbable::create(
@@ -171,7 +170,7 @@ impl App {
 		};
 		let label = application.name().and_then(|name| {
 			Text::create(
-				&icon.model_part("Label").ok()?,
+				&icon.part("Label").ok()?,
 				Transform::none(),
 				name,
 				label_style,
@@ -198,7 +197,7 @@ impl App {
 	// 		.unwrap();
 	// }
 
-	fn frame(&mut self, info: FrameInfo) {
+	fn frame(&mut self, info: &FrameInfo) {
 		let _ = self.grabbable.update(&info);
 
 		if self.grabbable.grab_action().actor_stopped() {

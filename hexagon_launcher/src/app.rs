@@ -5,14 +5,14 @@ use protostar::{
 	xdg::{DesktopFile, Icon, IconType},
 };
 use stardust_xr_fusion::{
-	client::FrameInfo,
 	core::values::{ResourceID, Vector3},
 	drawable::{
 		MaterialParameter, Model, ModelPartAspect, Text, TextBounds, TextFit, TextStyle, XAlign,
 		YAlign,
 	},
-	fields::BoxField,
+	fields::{Field, Shape},
 	node::NodeType,
+	root::FrameInfo,
 	spatial::{Spatial, SpatialAspect, SpatialRefAspect, Transform},
 };
 use stardust_xr_molecules::{Grabbable, GrabbableSettings};
@@ -36,9 +36,9 @@ fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
 				&ResourceID::new_namespaced("protostar", "hexagon/hexagon"),
 			)?;
 			model
-				.model_part("Hex")?
+				.part("Hex")?
 				.set_material_parameter("color", MaterialParameter::Color(DEFAULT_HEX_COLOR))?;
-			model.model_part("Icon")?.set_material_parameter(
+			model.part("Icon")?.set_material_parameter(
 				"diffuse",
 				MaterialParameter::Texture(ResourceID::Direct(icon.path.clone())),
 			)?;
@@ -58,7 +58,7 @@ pub struct App {
 	parent: Spatial,
 	position: Vector3<f32>,
 	grabbable: Grabbable,
-	_field: BoxField,
+	_field: Field,
 	icon: Model,
 	label: Option<Text>,
 	grabbable_shrink: Option<Tweener<f32, f64, QuartInOut>>,
@@ -73,7 +73,11 @@ impl App {
 		state: &State,
 	) -> Result<Self> {
 		let position = position.into();
-		let field = BoxField::create(parent, Transform::identity(), [APP_SIZE; 3])?;
+		let field = Field::create(
+			parent,
+			Transform::identity(),
+			Shape::Box([APP_SIZE; 3].into()),
+		)?;
 		let application = Application::create(desktop_file)?;
 		let icon = application.icon(128, false);
 		let grabbable = Grabbable::create(
@@ -81,7 +85,7 @@ impl App {
 			Transform::from_translation(position),
 			&field,
 			GrabbableSettings {
-				max_distance: 0.01,
+				max_distance: 0.025,
 				zoneable: false,
 				..Default::default()
 			},
@@ -167,12 +171,12 @@ impl App {
 		}
 	}
 
-	pub fn frame(&mut self, info: FrameInfo, state: &State) {
+	pub fn frame(&mut self, info: &FrameInfo, state: &State) {
 		let _ = self.grabbable.update(&info);
 
 		if let Some(grabbable_move) = &mut self.grabbable_move {
 			if !grabbable_move.is_finished() {
-				let scale = grabbable_move.move_by(info.delta);
+				let scale = grabbable_move.move_by(info.delta.into());
 				self.grabbable
 					.content_parent()
 					.set_relative_transform(
@@ -192,7 +196,7 @@ impl App {
 		}
 		if let Some(grabbable_shrink) = &mut self.grabbable_shrink {
 			if !grabbable_shrink.is_finished() {
-				let scale = grabbable_shrink.move_by(info.delta);
+				let scale = grabbable_shrink.move_by(info.delta.into());
 				self.grabbable
 					.content_parent()
 					.set_relative_transform(&self.parent, Transform::from_scale([scale; 3]))
@@ -227,7 +231,7 @@ impl App {
 			}
 		} else if let Some(grabbable_grow) = &mut self.grabbable_grow {
 			if !grabbable_grow.is_finished() {
-				let scale = grabbable_grow.move_by(info.delta);
+				let scale = grabbable_grow.move_by(info.delta.into());
 				self.grabbable
 					.content_parent()
 					.set_relative_transform(&self.parent, Transform::from_scale([scale; 3]))

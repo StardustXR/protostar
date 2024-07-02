@@ -5,14 +5,14 @@ use protostar::{
 	xdg::{DesktopFile, Icon, IconType},
 };
 use stardust_xr_fusion::{
-	client::{ClientState, FrameInfo, RootHandler},
 	core::values::{color::rgba_linear, ResourceID, Vector3},
 	drawable::{
 		MaterialParameter, Model, ModelPartAspect, Text, TextBounds, TextFit, TextStyle, XAlign,
 		YAlign,
 	},
-	fields::BoxField,
+	fields::{Field, Shape},
 	node::NodeType,
+	root::{ClientState, FrameInfo, RootHandler},
 	spatial::{Spatial, SpatialAspect, SpatialRefAspect, Transform},
 };
 use stardust_xr_molecules::{Grabbable, GrabbableSettings};
@@ -35,11 +35,11 @@ fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
 				t,
 				&ResourceID::new_namespaced("protostar", "hexagon/hexagon"),
 			)?;
-			model.model_part("Hex")?.set_material_parameter(
+			model.part("Hex")?.set_material_parameter(
 				"color",
 				MaterialParameter::Color(rgba_linear!(0.0, 1.0, 1.0, 1.0)),
 			)?;
-			model.model_part("Icon")?.set_material_parameter(
+			model.part("Icon")?.set_material_parameter(
 				"diffuse",
 				MaterialParameter::Texture(ResourceID::Direct(icon.path.clone())),
 			)?;
@@ -59,7 +59,7 @@ pub struct Single {
 	root: Spatial,
 	position: Vector3<f32>,
 	grabbable: Grabbable,
-	_field: BoxField,
+	_field: Field,
 	icon: Model,
 	label: Option<Text>,
 	grabbable_shrink: Option<Tweener<f32, f64, QuartInOut>>,
@@ -70,13 +70,17 @@ pub struct Single {
 
 impl Single {
 	pub fn create_from_desktop_file(
-		parent: &impl SpatialAspect,
+		parent: &impl SpatialRefAspect,
 		position: impl Into<Vector3<f32>>,
 		desktop_file: DesktopFile,
 	) -> Result<Self> {
 		let root = Spatial::create(parent, Transform::identity(), false)?;
 		let position = position.into();
-		let field = BoxField::create(&root, Transform::identity(), [MODEL_SCALE * 2.0; 3])?;
+		let field = Field::create(
+			&root,
+			Transform::identity(),
+			Shape::Box([MODEL_SCALE * 2.0; 3].into()),
+		)?;
 		let application = Application::create(desktop_file)?;
 		let icon = application.icon(128, false);
 		let grabbable = Grabbable::create(
@@ -148,7 +152,7 @@ impl RootHandler for Single {
 
 		if let Some(grabbable_move) = &mut self.grabbable_move {
 			if !grabbable_move.is_finished() {
-				let scale = grabbable_move.move_by(info.delta);
+				let scale = grabbable_move.move_by(info.delta.into());
 				self.grabbable
 					.content_parent()
 					.set_relative_transform(
@@ -172,7 +176,7 @@ impl RootHandler for Single {
 		}
 		if let Some(grabbable_shrink) = &mut self.grabbable_shrink {
 			if !grabbable_shrink.is_finished() {
-				let scale = grabbable_shrink.move_by(info.delta);
+				let scale = grabbable_shrink.move_by(info.delta.into());
 				self.grabbable
 					.content_parent()
 					.set_relative_transform(&self.root, Transform::from_scale([scale; 3]))
@@ -204,7 +208,7 @@ impl RootHandler for Single {
 			}
 		} else if let Some(grabbable_grow) = &mut self.grabbable_grow {
 			if !grabbable_grow.is_finished() {
-				let scale = grabbable_grow.move_by(info.delta);
+				let scale = grabbable_grow.move_by(info.delta.into());
 				self.grabbable
 					.content_parent()
 					.set_relative_transform(&self.root, Transform::from_scale([scale; 3]))
@@ -240,7 +244,7 @@ impl RootHandler for Single {
 		}
 	}
 
-	fn save_state(&mut self) -> ClientState {
+	fn save_state(&mut self) -> color_eyre::eyre::Result<ClientState> {
 		ClientState::from_root(self.content_parent())
 	}
 }

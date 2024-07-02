@@ -12,11 +12,5 @@ manifest-dir-macros = "0.1.18"
 glam = "0.24.2"
 tween = "2.0.1"
 tracing-subscriber = "0.3.17"
-
-[dependencies.stardust-xr-fusion]
-git = "https://github.com/StardustXR/core.git"
-# path = "../../core/fusion"
-
-[dependencies.stardust-xr-molecules]
-git = "https://github.com/StardustXR/molecules.git"
-# path = "../../molecules"
+stardust-xr-fusion = { workspace = true }
+stardust-xr-molecules = { workspace = true }

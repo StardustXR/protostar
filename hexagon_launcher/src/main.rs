@@ -9,23 +9,21 @@ use manifest_dir_macros::directory_relative_path;
 use protostar::xdg::{get_desktop_files, parse_desktop_file, DesktopFile};
 use serde::{Deserialize, Serialize};
 use stardust_xr_fusion::{
-	client::{Client, ClientState, FrameInfo, RootHandler},
-	core::{
-		schemas::flex::flexbuffers,
-		values::{
-			color::{color_space::LinearRgb, rgba_linear, Rgba},
-			ResourceID,
-		},
+	client::Client,
+	core::values::{
+		color::{color_space::LinearRgb, rgba_linear, Rgba},
+		ResourceID,
 	},
 	drawable::{MaterialParameter, Model, ModelPartAspect},
 	node::{NodeError, NodeType},
+	root::{ClientState, FrameInfo, RootAspect, RootHandler},
 	spatial::{Spatial, SpatialAspect, Transform},
 };
 use stardust_xr_molecules::{
 	button::{Button, ButtonSettings},
 	Grabbable, GrabbableSettings, PointerMode,
 };
-use std::{f32::consts::PI, time::Duration};
+use std::{f32::consts::PI, sync::Arc, time::Duration};
 
 const APP_SIZE: f32 = 0.06;
 const PADDING: f32 = 0.005;
@@ -44,9 +42,14 @@ async fn main() -> Result<()> {
 		.pretty()
 		.init();
 	let (client, event_loop) = Client::connect_with_async_loop().await?;
-	client.set_base_prefixes(&[directory_relative_path!("../res")]);
+	client
+		.set_base_prefixes(&[directory_relative_path!("../res")])
+		.unwrap();
 
-	let _root = client.wrap_root(AppHexGrid::new(&client).await)?;
+	let _root = client
+		.get_root()
+		.alias()
+		.wrap(AppHexGrid::new(&client).await)?;
 
 	tokio::select! {
 		_ = tokio::signal::ctrl_c() => (),
@@ -55,7 +58,7 @@ async fn main() -> Result<()> {
 	Ok(())
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct State {
 	unfurled: bool,
 }
@@ -67,13 +70,13 @@ struct AppHexGrid {
 	state: State,
 }
 impl AppHexGrid {
-	async fn new(client: &Client) -> Self {
-		let state = flexbuffers::from_slice(&client.state().data).unwrap_or_default();
+	async fn new(client: &Arc<Client>) -> Self {
+		let state = client.get_state().data().unwrap_or_default();
 
 		let movable_root =
 			Spatial::create(client.get_root(), Transform::identity(), false).unwrap();
 
-		let button = CenterButton::new(client, &client.state()).unwrap();
+		let button = CenterButton::new(client, &client.get_state()).unwrap();
 		tokio::time::sleep(Duration::from_millis(10)).await; // give it a bit of time to send the messages properly
 
 		let mut desktop_files: Vec<DesktopFile> = get_desktop_files()
@@ -119,11 +122,11 @@ impl AppHexGrid {
 }
 impl RootHandler for AppHexGrid {
 	fn frame(&mut self, info: FrameInfo) {
-		self.button.frame(info);
+		self.button.frame(&info);
 		if self.button.button.pressed() {
 			self.button
 				.model
-				.model_part("Hex")
+				.part("Hex")
 				.unwrap()
 				.set_material_parameter("color", MaterialParameter::Color(BTN_SELECTED_COLOR))
 				.unwrap();
@@ -134,33 +137,33 @@ impl RootHandler for AppHexGrid {
 		} else if self.button.button.released() {
 			self.button
 				.model
-				.model_part("Hex")
+				.part("Hex")
 				.unwrap()
 				.set_material_parameter("color", MaterialParameter::Color(BTN_COLOR))
 				.unwrap();
 		}
 		for app in &mut self.apps {
-			app.frame(info, &self.state);
+			app.frame(&info, &self.state);
 		}
 	}
 
-	fn save_state(&mut self) -> ClientState {
+	fn save_state(&mut self) -> Result<ClientState> {
 		self.movable_root
 			.set_relative_transform(
 				self.button.grabbable.content_parent(),
 				Transform::from_translation([0.0; 3]),
 			)
 			.unwrap();
-		ClientState {
-			data: flexbuffers::to_vec(&self.state).unwrap(),
-			root: self.movable_root.alias(),
-			spatial_anchors: [(
+		ClientState::new(
+			Some(self.state.clone()),
+			&self.movable_root,
+			[(
 				"content_parent".to_string(),
-				self.button.grabbable.content_parent().alias(),
+				self.button.grabbable.content_parent(),
 			)]
 			.into_iter()
 			.collect(),
-		}
+		)
 	}
 }
 
@@ -170,7 +173,7 @@ struct CenterButton {
 	model: Model,
 }
 impl CenterButton {
-	fn new(client: &Client, state: &ClientState) -> Result<Self, NodeError> {
+	fn new(client: &Arc<Client>, state: &ClientState) -> Result<Self, NodeError> {
 		// (APP_SIZE + PADDING) / 2.0,
 		let button = Button::create(
 			client.get_root(),
@@ -206,9 +209,9 @@ impl CenterButton {
 			&ResourceID::new_namespaced("protostar", "hexagon/hexagon"),
 		)?;
 		model
-			.model_part("Hex")?
+			.part("Hex")?
 			.set_material_parameter("color", MaterialParameter::Color(BTN_COLOR))?;
-		if let Some(content_parent) = state.spatial_anchors.get("content_parent") {
+		if let Some(content_parent) = state.spatial_anchors(client).get("content_parent") {
 			grabbable
 				.content_parent()
 				.set_relative_transform(content_parent, Transform::identity())?;
@@ -220,7 +223,7 @@ impl CenterButton {
 		})
 	}
 
-	fn frame(&mut self, info: FrameInfo) {
+	fn frame(&mut self, info: &FrameInfo) {
 		let _ = self.grabbable.update(&info);
 		self.button.update();
 	}
