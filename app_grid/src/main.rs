@@ -198,7 +198,7 @@ impl App {
 	// }
 
 	fn frame(&mut self, info: &FrameInfo) {
-		let _ = self.grabbable.update(&info);
+		let _ = self.grabbable.update(info);
 
 		if self.grabbable.grab_action().actor_stopped() {
 			self.grabbable.cancel_angular_velocity();

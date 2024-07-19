@@ -76,7 +76,7 @@ impl AppHexGrid {
 		let movable_root =
 			Spatial::create(client.get_root(), Transform::identity(), false).unwrap();
 
-		let button = CenterButton::new(client, &client.get_state()).unwrap();
+		let button = CenterButton::new(client, client.get_state()).unwrap();
 		tokio::time::sleep(Duration::from_millis(10)).await; // give it a bit of time to send the messages properly
 
 		let mut desktop_files: Vec<DesktopFile> = get_desktop_files()
@@ -89,7 +89,7 @@ impl AppHexGrid {
 		let mut apps = Vec::new();
 		let mut radius = 1;
 		while !desktop_files.is_empty() {
-			let mut hex = HEX_CENTER.add(&HEX_DIRECTION_VECTORS[4].clone().scale(radius));
+			let mut hex = HEX_CENTER + HEX_DIRECTION_VECTORS[4].scale(radius);
 			for i in 0..6 {
 				if desktop_files.is_empty() {
 					break;
@@ -187,7 +187,7 @@ impl CenterButton {
 		let grabbable = Grabbable::create(
 			client.get_root(),
 			Transform::none(),
-			&button.touch_plane().field(),
+			button.touch_plane().field(),
 			GrabbableSettings {
 				max_distance: 0.025,
 				pointer_mode: PointerMode::Align,
@@ -224,7 +224,7 @@ impl CenterButton {
 	}
 
 	fn frame(&mut self, info: &FrameInfo) {
-		let _ = self.grabbable.update(&info);
+		let _ = self.grabbable.update(info);
 		self.button.update();
 	}
 }

@@ -1,7 +1,9 @@
+use std::ops::Add;
+
 use crate::{APP_SIZE, PADDING};
 use tween::TweenTime;
 
-#[derive(Clone)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct Hex {
 	q: isize,
 	r: isize,
@@ -30,15 +32,18 @@ impl Hex {
 		[x, y, 0.0]
 	}
 
-	pub fn add(self, vec: &Hex) -> Self {
-		Hex::new(self.q + vec.q, self.r + vec.r, self.s + vec.s)
-	}
-
 	pub fn neighbor(self, direction: usize) -> Self {
-		self.add(&HEX_DIRECTION_VECTORS[direction])
+		self + HEX_DIRECTION_VECTORS[direction]
 	}
 
 	pub fn scale(self, factor: isize) -> Self {
 		Hex::new(self.q * factor, self.r * factor, self.s * factor)
+	}
+}
+impl Add for Hex {
+	type Output = Hex;
+
+	fn add(self, rhs: Self) -> Self::Output {
+		Hex::new(self.q + rhs.q, self.r + rhs.r, self.s + rhs.s)
 	}
 }

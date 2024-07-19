@@ -190,7 +190,7 @@ impl App {
 	}
 
 	pub fn frame(&mut self, info: &FrameInfo, state: &State) {
-		let _ = self.grabbable.update(&info);
+		let _ = self.grabbable.update(info);
 
 		if let Some(grabbable_move) = &mut self.grabbable_move {
 			if !grabbable_move.is_finished() {

@@ -61,8 +61,8 @@ fn get_data_dirs() -> Vec<PathBuf> {
 		.split(':')
 		.filter_map(|dir| PathBuf::from_str(dir).ok())
 		.chain(dirs::home_dir().into_iter().map(|d| d.join(".local/share"))) // $HOME/.local/share
-		.chain(PathBuf::from_str("/usr/share").into_iter()) // /usr/share
-		.chain(PathBuf::from_str("/usr/local/share").into_iter()) // /usr/local/share
+		.chain(PathBuf::from_str("/usr/share")) // /usr/share
+		.chain(PathBuf::from_str("/usr/local/share")) // /usr/local/share
 		.filter(|dir| dir.exists() && dir.is_dir())
 		.unique()
 		.collect()
@@ -214,9 +214,7 @@ const ICON_SIZES: [u16; 7] = [512, 256, 128, 64, 48, 32, 24];
 impl DesktopFile {
 	pub fn get_icon(&self, preferred_px_size: u16) -> Option<Icon> {
 		// Get the name of the icon from the DesktopFile struct
-		let Some(icon_name) = self.icon.as_ref() else {
-			return None;
-		};
+		let icon_name = self.icon.as_ref()?;
 		let test_icon_path = self.path.join(Path::new(icon_name));
 		if test_icon_path.exists() {
 			if let Some(icon) = Icon::from_path(test_icon_path, preferred_px_size) {
