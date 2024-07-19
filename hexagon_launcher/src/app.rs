@@ -10,7 +10,7 @@ use stardust_xr_fusion::{
 		MaterialParameter, Model, ModelPartAspect, Text, TextBounds, TextFit, TextStyle, XAlign,
 		YAlign,
 	},
-	fields::{Field, Shape},
+	fields::{CylinderShape, Field, Shape},
 	node::NodeType,
 	root::FrameInfo,
 	spatial::{Spatial, SpatialAspect, SpatialRefAspect, Transform},
@@ -59,6 +59,7 @@ pub struct App {
 	position: Vector3<f32>,
 	grabbable: Grabbable,
 	_field: Field,
+	// field_lines: Lines,
 	icon: Model,
 	label: Option<Text>,
 	grabbable_shrink: Option<Tweener<f32, f64, QuartInOut>>,
@@ -76,8 +77,24 @@ impl App {
 		let field = Field::create(
 			parent,
 			Transform::identity(),
-			Shape::Box([APP_SIZE; 3].into()),
+			Shape::Cylinder(CylinderShape {
+				length: 0.01,
+				radius: APP_SIZE / 2.0,
+			}),
 		)?;
+		// let circle = circle(32, 0.0, APP_SIZE / 2.0).thickness(0.001);
+		// let field_lines = Lines::create(
+		// 	&field,
+		// 	Transform::identity(),
+		// 	&[
+		// 		circle
+		// 			.clone()
+		// 			.transform(Mat4::from_translation([0.0, 0.0, 0.005].into())),
+		// 		circle
+		// 			.clone()
+		// 			.transform(Mat4::from_translation([0.0, 0.0, -0.005].into())),
+		// 	],
+		// )?;
 		let application = Application::create(desktop_file)?;
 		let icon = application.icon(128, false);
 		let grabbable = Grabbable::create(
@@ -85,7 +102,7 @@ impl App {
 			Transform::from_translation(position),
 			&field,
 			GrabbableSettings {
-				max_distance: 0.025,
+				max_distance: 0.05,
 				zoneable: false,
 				..Default::default()
 			},
@@ -147,6 +164,7 @@ impl App {
 			position,
 			grabbable,
 			_field: field,
+			// field_lines,
 			label,
 			application,
 			icon,
