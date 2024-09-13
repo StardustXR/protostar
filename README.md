@@ -1,6 +1,6 @@
 # protostar
 
-Prototype application launcher for StardustXR
+Prototype application launcher for Stardust XR
 
 Protostar provides an easy to use crate to write applications launchers. See the [examples](examples) to learn more!
 
