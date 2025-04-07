@@ -13,11 +13,11 @@ use stardust_xr_fusion::{
 		YAlign,
 	},
 	fields::{Field, Shape},
-	node::NodeType,
-	root::{ClientState, FrameInfo, RootAspect, RootHandler},
+	root::{ClientState, FrameInfo, RootAspect},
 	spatial::{Spatial, SpatialAspect, SpatialRefAspect, Transform},
+	ClientHandle,
 };
-use stardust_xr_molecules::{Grabbable, GrabbableSettings};
+use stardust_xr_molecules::{FrameSensitive, Grabbable, GrabbableSettings, UIElement};
 use std::f32::consts::PI;
 
 const APP_LIMIT: usize = 300;
@@ -32,16 +32,34 @@ async fn main() -> Result<()> {
 		.with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
 		.pretty()
 		.init();
-	let (client, event_loop) = Client::connect_with_async_loop().await?;
+	let owned_client = Client::connect().await?;
+	let client = owned_client.handle();
+	let async_loop = owned_client.async_event_loop();
 	client
-		.set_base_prefixes(&[directory_relative_path!("../res")])
+		.get_root()
+		.set_base_prefixes(&[directory_relative_path!("../res").to_string()])
 		.unwrap();
 
-	let _root = client.get_root().alias().wrap(AppGrid::new(&client))?;
+	let mut grid = AppGrid::new(&client);
+	let mut owned_client = async_loop.stop().await.unwrap();
+	let event_loop = owned_client.sync_event_loop(|handle, _| {
+		let Some(event) = handle.get_root().recv_root_event() else {
+			return;
+		};
+		match event {
+			stardust_xr_fusion::root::RootEvent::Ping { response } => response.send(Ok(())),
+			stardust_xr_fusion::root::RootEvent::Frame { info } => {
+				grid.frame(info);
+			}
+			stardust_xr_fusion::root::RootEvent::SaveState { response } => {
+				response.send(grid.save_state());
+			}
+		}
+	});
 
 	tokio::select! {
 		_ = tokio::signal::ctrl_c() => (),
-		e = event_loop => e??,
+		e = event_loop => e?,
 	};
 	Ok(())
 }
@@ -51,7 +69,7 @@ struct AppGrid {
 	//style: TextStyle,
 }
 impl AppGrid {
-	fn new(client: &Client) -> Self {
+	fn new(client: &ClientHandle) -> Self {
 		let apps = get_desktop_files()
 			.filter_map(|d| parse_desktop_file(d).ok())
 			.filter(|d| !d.no_display)
@@ -74,7 +92,7 @@ impl AppGrid {
 		AppGrid { apps }
 	}
 }
-impl RootHandler for AppGrid {
+impl AppGrid {
 	fn frame(&mut self, info: FrameInfo) {
 		for app in &mut self.apps {
 			app.frame(&info);
@@ -198,7 +216,10 @@ impl App {
 	// }
 
 	fn frame(&mut self, info: &FrameInfo) {
-		let _ = self.grabbable.update(info);
+		if !self.grabbable.handle_events() {
+			return;
+		}
+		self.grabbable.frame(info);
 
 		if self.grabbable.grab_action().actor_stopped() {
 			self.grabbable.cancel_angular_velocity();
@@ -210,8 +231,8 @@ impl App {
 			// }
 
 			let application = self.application.clone();
-			let space = self.content_parent().alias();
-			let root = self.root.alias();
+			let space = self.content_parent().clone();
+			let root = self.root.clone();
 
 			tokio::task::spawn(async move {
 				let Ok(transform) = space.get_transform(&root).await else {

@@ -16,12 +16,12 @@ use stardust_xr_fusion::{
 	},
 	fields::{Field, Shape},
 	node::{NodeError, NodeType},
-	root::{ClientState, FrameInfo, RootAspect, RootHandler},
-	spatial::{Spatial, SpatialAspect, SpatialRefAspect, Transform},
+	root::{ClientState, FrameInfo, RootAspect},
+	spatial::{Spatial, SpatialAspect, SpatialRefAspect, Transform}, ClientHandle,
 };
 use stardust_xr_molecules::{
 	button::{Button, ButtonSettings},
-	Grabbable, GrabbableSettings,
+	FrameSensitive, Grabbable, GrabbableSettings, UIElement,
 };
 use std::{f32::consts::PI, path::PathBuf};
 
@@ -50,17 +50,33 @@ async fn main() -> Result<()> {
 		)
 	}
 
-	let (client, event_loop) = Client::connect_with_async_loop().await?;
-	client.set_base_prefixes(&[directory_relative_path!("../res")])?;
-
-	let _wrapped_root = client
+	let owned_client = Client::connect().await?;
+	let client = owned_client.handle();
+	let async_loop = owned_client.async_event_loop();
+	client
 		.get_root()
-		.alias()
-		.wrap(Sirius::new(&client, args)?)?;
+		.set_base_prefixes(&[directory_relative_path!("../res").to_string()])?;
+	let mut sirius = Sirius::new(&client, args)?;
+
+	let mut owned_client = async_loop.stop().await.unwrap();
+	let event_loop = owned_client.sync_event_loop(|handle, _| {
+		let Some(event) = handle.get_root().recv_root_event() else {
+			return;
+		};
+		match event {
+			stardust_xr_fusion::root::RootEvent::Ping { response } => response.send(Ok(())),
+			stardust_xr_fusion::root::RootEvent::Frame { info } => {
+				sirius.frame(info);
+			}
+			stardust_xr_fusion::root::RootEvent::SaveState { response } => {
+				response.send(sirius.save_state());
+			}
+		}
+	});
 
 	tokio::select! {
 		_ = tokio::signal::ctrl_c() => (),
-		e = event_loop => e??,
+		e = event_loop => e?,
 	}
 	Ok(())
 }
@@ -78,7 +94,7 @@ struct Sirius {
 	grabbable: Grabbable,
 }
 impl Sirius {
-	fn new(client: &Client, args: Args) -> Result<Self, NodeError> {
+	fn new(client: &ClientHandle, args: Args) -> Result<Self, NodeError> {
 		let root = Spatial::create(client.get_root(), Transform::identity(), false).unwrap();
 
 		let field =
@@ -141,15 +157,16 @@ impl Sirius {
 	//        }
 	//    }
 }
-impl RootHandler for Sirius {
+impl Sirius {
 	fn frame(&mut self, info: FrameInfo) {
 		for app in &mut self.clients {
 			app.frame(&info);
 		}
 
-		self.grabbable.update(&info).unwrap();
-		self.button.update();
-		if self.button.pressed() {
+		if self.grabbable.handle_events() {
+			self.grabbable.frame(&info);
+		};
+		if self.button.handle_events() && self.button.pressed() {
 			println!("Touch started");
 			self.state.visible = !self.state.visible;
 			match self.state.visible {
@@ -343,7 +360,7 @@ impl App {
 			.ok()
 		});
 		Ok(App {
-			parent: parent.alias(),
+			parent: parent.clone(),
 			position,
 			grabbable,
 			_field: field,
@@ -374,7 +391,10 @@ impl App {
 	}
 
 	fn frame(&mut self, info: &FrameInfo) {
-		let _ = self.grabbable.update(info);
+		if !self.grabbable.handle_events() {
+			return;
+		}
+		self.grabbable.frame(info);
 
 		if let Some(grabbable_move) = &mut self.grabbable_move {
 			if !grabbable_move.is_finished() {
@@ -449,8 +469,8 @@ impl App {
 			self.grabbable_shrink = Some(Tweener::quart_in_out(APP_SIZE * 0.5, 0.0001, 0.25));
 
 			let application = self.application.clone();
-			let space = self.content_parent().alias();
-			let parent = self.parent.alias();
+			let space = self.content_parent().clone();
+			let parent = self.parent.clone();
 
 			//TODO: split the executable string for the args
 			tokio::task::spawn(async move {
