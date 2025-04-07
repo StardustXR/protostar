@@ -12,10 +12,10 @@ use stardust_xr_fusion::{
 	},
 	fields::{Field, Shape},
 	node::NodeType,
-	root::{ClientState, FrameInfo, RootHandler},
+	root::{ClientState, FrameInfo},
 	spatial::{Spatial, SpatialAspect, SpatialRefAspect, Transform},
 };
-use stardust_xr_molecules::{Grabbable, GrabbableSettings};
+use stardust_xr_molecules::{FrameSensitive, Grabbable, GrabbableSettings, UIElement};
 use std::f32::consts::PI;
 use tween::{QuartInOut, Tweener};
 
@@ -146,9 +146,11 @@ impl Single {
 		self.grabbable.content_parent()
 	}
 }
-impl RootHandler for Single {
-	fn frame(&mut self, info: FrameInfo) {
-		let _ = self.grabbable.update(&info);
+impl Single {
+	pub fn frame(&mut self, info: FrameInfo) {
+		if self.grabbable.handle_events() {
+			self.grabbable.frame(&info);
+		}
 
 		if let Some(grabbable_move) = &mut self.grabbable_move {
 			if !grabbable_move.is_finished() {
@@ -224,8 +226,8 @@ impl RootHandler for Single {
 			self.grabbable_shrink = Some(Tweener::quart_in_out(MODEL_SCALE, 0.0001, 0.25));
 
 			let application = self.application.clone();
-			let space = self.content_parent().alias();
-			let root = self.root.alias();
+			let space = self.content_parent().clone();
+			let root = self.root.clone();
 
 			//TODO: split the executable string for the args
 			tokio::task::spawn(async move {
@@ -244,7 +246,7 @@ impl RootHandler for Single {
 		}
 	}
 
-	fn save_state(&mut self) -> color_eyre::eyre::Result<ClientState> {
+	pub fn save_state(&mut self) -> color_eyre::eyre::Result<ClientState> {
 		ClientState::from_root(self.content_parent())
 	}
 }

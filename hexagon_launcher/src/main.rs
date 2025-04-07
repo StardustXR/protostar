@@ -15,13 +15,14 @@ use stardust_xr_fusion::{
 		ResourceID,
 	},
 	drawable::{MaterialParameter, Model, ModelPartAspect},
-	node::{NodeError, NodeType},
-	root::{ClientState, FrameInfo, RootAspect, RootHandler},
+	node::NodeError,
+	root::{ClientState, FrameInfo, RootAspect, RootEvent},
 	spatial::{Spatial, SpatialAspect, Transform},
+	ClientHandle,
 };
 use stardust_xr_molecules::{
 	button::{Button, ButtonSettings},
-	Grabbable, GrabbableSettings, PointerMode,
+	FrameSensitive, Grabbable, GrabbableSettings, PointerMode, UIElement,
 };
 use std::{f32::consts::PI, sync::Arc, time::Duration};
 
@@ -41,19 +42,33 @@ async fn main() -> Result<()> {
 		.with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
 		.pretty()
 		.init();
-	let (client, event_loop) = Client::connect_with_async_loop().await?;
+	let owned_client = Client::connect().await?;
+	let client = owned_client.handle();
+	let async_loop = owned_client.async_event_loop();
 	client
-		.set_base_prefixes(&[directory_relative_path!("../res")])
-		.unwrap();
-
-	let _root = client
 		.get_root()
-		.alias()
-		.wrap(AppHexGrid::new(&client).await)?;
+		.set_base_prefixes(&[directory_relative_path!("../res").to_string()])
+		.unwrap();
+	let mut grid = AppHexGrid::new(&client).await;
+	let mut owned_client = async_loop.stop().await.unwrap();
+	let event_loop = owned_client.sync_event_loop(|handle, _| {
+		let Some(event) = handle.get_root().recv_root_event() else {
+			return;
+		};
+		match event {
+			RootEvent::Ping { response } => response.send(Ok(())),
+			RootEvent::Frame { info } => {
+				grid.frame(info);
+			}
+			RootEvent::SaveState { response } => {
+				response.send(grid.save_state());
+			}
+		}
+	});
 
 	tokio::select! {
 		_ = tokio::signal::ctrl_c() => (),
-		e = event_loop => e??,
+		e = event_loop => e?,
 	}
 	Ok(())
 }
@@ -70,13 +85,14 @@ struct AppHexGrid {
 	state: State,
 }
 impl AppHexGrid {
-	async fn new(client: &Arc<Client>) -> Self {
-		let state = client.get_state().data().unwrap_or_default();
+	async fn new(client: &Arc<ClientHandle>) -> Self {
+		let client_state = client.get_root().get_state().await.unwrap();
+		let state = client_state.data().unwrap_or_default();
 
 		let movable_root =
 			Spatial::create(client.get_root(), Transform::identity(), false).unwrap();
 
-		let button = CenterButton::new(client, client.get_state()).unwrap();
+		let button = CenterButton::new(client, &client_state).unwrap();
 		tokio::time::sleep(Duration::from_millis(10)).await; // give it a bit of time to send the messages properly
 
 		let mut desktop_files: Vec<DesktopFile> = get_desktop_files()
@@ -120,7 +136,7 @@ impl AppHexGrid {
 		}
 	}
 }
-impl RootHandler for AppHexGrid {
+impl AppHexGrid {
 	fn frame(&mut self, info: FrameInfo) {
 		self.button.frame(&info);
 		if self.button.button.pressed() {
@@ -173,7 +189,7 @@ struct CenterButton {
 	model: Model,
 }
 impl CenterButton {
-	fn new(client: &Arc<Client>, state: &ClientState) -> Result<Self, NodeError> {
+	fn new(client: &Arc<ClientHandle>, state: &ClientState) -> Result<Self, NodeError> {
 		// (APP_SIZE + PADDING) / 2.0,
 		let button = Button::create(
 			client.get_root(),
@@ -224,7 +240,9 @@ impl CenterButton {
 	}
 
 	fn frame(&mut self, info: &FrameInfo) {
-		let _ = self.grabbable.update(info);
-		self.button.update();
+		if self.grabbable.handle_events() {
+			self.grabbable.frame(info);
+		}
+		self.button.handle_events();
 	}
 }

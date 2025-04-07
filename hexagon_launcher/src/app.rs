@@ -15,7 +15,7 @@ use stardust_xr_fusion::{
 	root::FrameInfo,
 	spatial::{Spatial, SpatialAspect, SpatialRefAspect, Transform},
 };
-use stardust_xr_molecules::{Grabbable, GrabbableSettings};
+use stardust_xr_molecules::{FrameSensitive as _, Grabbable, GrabbableSettings, UIElement};
 use std::f32::consts::PI;
 use tween::{QuartInOut, Tweener};
 
@@ -160,7 +160,7 @@ impl App {
 		}
 
 		Ok(App {
-			parent: parent.alias(),
+			parent: parent.clone(),
 			position,
 			grabbable,
 			_field: field,
@@ -190,7 +190,9 @@ impl App {
 	}
 
 	pub fn frame(&mut self, info: &FrameInfo, state: &State) {
-		let _ = self.grabbable.update(info);
+		if self.grabbable.handle_events() {
+			self.grabbable.frame(info);
+		}
 
 		if let Some(grabbable_move) = &mut self.grabbable_move {
 			if !grabbable_move.is_finished() {
@@ -265,8 +267,8 @@ impl App {
 			self.grabbable_shrink = Some(Tweener::quart_in_out(APP_SIZE * 0.5, 0.0001, 0.25));
 
 			let application = self.application.clone();
-			let space = self.content_parent().alias();
-			let parent = self.parent.alias();
+			let space = self.content_parent().clone();
+			let parent = self.parent.clone();
 
 			//TODO: split the executable string for the args
 			tokio::task::spawn(async move {

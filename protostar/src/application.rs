@@ -44,9 +44,9 @@ impl Application {
 		icon.and_then(|i| i.cached_process(preferred_px_size).ok())
 	}
 
-	pub fn launch(&self, launch_space: &impl SpatialRefAspect) -> NodeResult<()> {
+	pub fn launch<T: SpatialRefAspect + Clone>(&self, launch_space: &T) -> NodeResult<()> {
 		let client = launch_space.node().client()?;
-		let launch_space = launch_space.alias();
+		let launch_space = launch_space.clone();
 
 		let executable = self
 			.desktop_file
@@ -66,10 +66,16 @@ impl Application {
 				return;
 			};
 			for (k, v) in connection_env.into_iter() {
-				std::env::set_var(k, v);
+				// this should be fine, probably?
+				unsafe {
+					std::env::set_var(k, v);
+				}
 			}
 
-			std::env::set_var("STARDUST_STARTUP_TOKEN", startup_token);
+			// this should be fine, probably?
+			unsafe {
+				std::env::set_var("STARDUST_STARTUP_TOKEN", startup_token);
+			}
 
 			// Strip/ignore field codes https://specifications.freedesktop.org/desktop-entry-spec/latest/ar01s07.html
 			let re = Regex::new(r"%[fFuUdDnNickvm]").unwrap();
