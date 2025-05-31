@@ -4,13 +4,13 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-tokio = { version = "1.32.0", features = ["rt", "tokio-macros", "sync"] }
+tokio = { version = "1.47.1", features = ["rt", "tokio-macros", "sync"] }
 protostar = { path = "../protostar" }
-color-eyre = "0.6.2"
-clap = "4.4.6"
+color-eyre = "0.6.5"
+clap = "4.5.46"
 manifest-dir-macros = "0.1.18"
 glam = "0.24.2"
-tween = "2.0.1"
-tracing-subscriber = "0.3.17"
+tween = "2.1.0"
+tracing-subscriber = "0.3.20"
 stardust-xr-fusion = { workspace = true }
 stardust-xr-molecules = { workspace = true }

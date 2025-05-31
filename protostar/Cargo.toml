@@ -17,7 +17,7 @@ lazy_static = "1.4.0"
 linicon-theme = "1.2.0"
 manifest-dir-macros = "0.1.16"
 mint = "0.5.9"
-nix = "0.27.1"
+nix = { version = "0.27.1", features = ["process"] }
 regex = "1.7.1"
 resvg = "0.29.0"
 rustc-hash = "1.1.0"

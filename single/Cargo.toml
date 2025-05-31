@@ -2,6 +2,7 @@
 name = "single"
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.88"
 
 [dependencies]
 protostar = { path = "../protostar" }
@@ -10,7 +11,11 @@ clap = "4.4.6"
 manifest-dir-macros = "0.1.18"
 glam = "0.24.2"
 tween = "2.0.1"
+mint = "0.5.9"
+tracing = "0.1.41"
 tracing-subscriber = "0.3.17"
 tokio = { workspace = true }
+serde = { workspace = true }
 stardust-xr-fusion = { workspace = true }
 stardust-xr-molecules = { workspace = true }
+asteroids = { workspace = true }

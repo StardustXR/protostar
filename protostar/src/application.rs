@@ -1,6 +1,7 @@
 use crate::xdg::{DesktopFile, Icon, IconType};
-use nix::libc::setsid;
+use nix::{libc::setsid, unistd::ForkResult};
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 use stardust_xr_fusion::{
 	node::{NodeError, NodeResult},
 	root::{ClientState, RootAspect},
@@ -8,10 +9,10 @@ use stardust_xr_fusion::{
 };
 use std::{
 	os::unix::process::CommandExt,
-	process::{Command, Stdio},
+	process::{Command, Stdio, exit},
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Application {
 	desktop_file: DesktopFile,
 }
@@ -82,18 +83,21 @@ impl Application {
 			let exec: std::borrow::Cow<'_, str> = re.replace_all(&executable, "");
 
 			unsafe {
-				Command::new("sh")
-					.arg("-c")
-					.arg(exec.to_string())
-					.stdin(Stdio::null())
-					.stdout(Stdio::null())
-					.stderr(Stdio::null())
-					.pre_exec(|| {
-						_ = setsid();
-						Ok(())
-					})
-					.spawn()
-					.expect("Failed to start child process");
+				if let ForkResult::Child = nix::unistd::fork().expect("fork died???? how?????") {
+					let _ = Command::new("sh")
+						.arg("-c")
+						.arg(exec.to_string())
+						.stdin(Stdio::null())
+						.stdout(Stdio::null())
+						.stderr(Stdio::null())
+						.pre_exec(|| {
+							_ = setsid();
+							Ok(())
+						})
+						.spawn()
+						.expect("Failed to start child process");
+					exit(0);
+				}
 			}
 		});
 

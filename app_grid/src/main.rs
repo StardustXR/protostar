@@ -3,19 +3,19 @@ use glam::{Quat, Vec3};
 use manifest_dir_macros::directory_relative_path;
 use protostar::{
 	application::Application,
-	xdg::{get_desktop_files, parse_desktop_file, DesktopFile, Icon, IconType},
+	xdg::{DesktopFile, Icon, IconType, get_desktop_files, parse_desktop_file},
 };
 use stardust_xr_fusion::{
+	ClientHandle,
 	client::Client,
-	core::values::{color::rgba_linear, ResourceID, Vector3},
+	core::values::{ResourceID, Vector3, color::rgba_linear},
 	drawable::{
 		MaterialParameter, Model, ModelPartAspect, Text, TextBounds, TextFit, TextStyle, XAlign,
 		YAlign,
 	},
 	fields::{Field, Shape},
 	root::{ClientState, FrameInfo, RootAspect},
-	spatial::{Spatial, SpatialAspect, SpatialRefAspect, Transform},
-	ClientHandle,
+	spatial::{Spatial, SpatialAspect, SpatialRef, SpatialRefAspect, Transform},
 };
 use stardust_xr_molecules::{FrameSensitive, Grabbable, GrabbableSettings, UIElement};
 use std::f32::consts::PI;
@@ -103,7 +103,7 @@ impl AppGrid {
 	}
 }
 
-fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
+fn model_from_icon(parent: &SpatialRef, icon: &Icon) -> Result<Model> {
 	match &icon.icon_type {
 		IconType::Png => {
 			// let t = Transform::from_rotation_scale(
@@ -145,7 +145,7 @@ pub struct App {
 }
 impl App {
 	pub fn create_from_desktop_file(
-		parent: &impl SpatialRefAspect,
+		parent: &SpatialRef,
 		position: impl Into<Vector3<f32>>,
 		desktop_file: DesktopFile,
 	) -> Result<Self> {
@@ -163,12 +163,12 @@ impl App {
 			},
 		)?;
 		grabbable.content_parent().set_spatial_parent(parent)?;
-		field.set_spatial_parent(grabbable.content_parent())?;
+		field.set_spatial_parent(&grabbable.content_parent())?;
 		let icon = icon
-			.map(|i| model_from_icon(grabbable.content_parent(), &i))
+			.map(|i| model_from_icon(&grabbable.content_parent(), &i))
 			.unwrap_or_else(|| {
 				Ok(Model::create(
-					grabbable.content_parent(),
+					&grabbable.content_parent(),
 					Transform::from_rotation(Quat::from_rotation_y(PI)),
 					&ResourceID::new_namespaced("protostar", "cartridge"),
 				)?)

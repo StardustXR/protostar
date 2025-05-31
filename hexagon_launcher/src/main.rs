@@ -1,248 +1,150 @@
-pub mod app;
-pub mod hex;
+mod hex;
 
-use app::App;
-use color_eyre::eyre::Result;
+use asteroids::{
+	ClientState, CustomElement, Element, Migrate, Reify, Transformable, client,
+	elements::{Button, Grabbable, Model, ModelPart, PointerMode, Spatial},
+};
 use glam::Quat;
-use hex::{HEX_CENTER, HEX_DIRECTION_VECTORS};
-use manifest_dir_macros::directory_relative_path;
-use protostar::xdg::{get_desktop_files, parse_desktop_file, DesktopFile};
+use hex::Hex;
+use mint::{Quaternion, Vector3};
+use protostar::xdg::{DesktopFile, get_desktop_files};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
+use single::{APP_SIZE, App, BTN_COLOR, BTN_SELECTED_COLOR, MODEL_SCALE};
 use stardust_xr_fusion::{
-	client::Client,
-	core::values::{
-		color::{color_space::LinearRgb, rgba_linear, Rgba},
-		ResourceID,
-	},
-	drawable::{MaterialParameter, Model, ModelPartAspect},
-	node::NodeError,
-	root::{ClientState, FrameInfo, RootAspect, RootEvent},
-	spatial::{Spatial, SpatialAspect, Transform},
-	ClientHandle,
+	drawable::MaterialParameter,
+	fields::{CylinderShape, Shape},
+	project_local_resources,
+	spatial::Transform,
 };
-use stardust_xr_molecules::{
-	button::{Button, ButtonSettings},
-	FrameSensitive, Grabbable, GrabbableSettings, PointerMode, UIElement,
-};
-use std::{f32::consts::PI, sync::Arc, time::Duration};
-
-const APP_SIZE: f32 = 0.06;
-const PADDING: f32 = 0.005;
-const MODEL_SCALE: f32 = 0.03;
-const ACTIVATION_DISTANCE: f32 = 0.05;
-
-const DEFAULT_HEX_COLOR: Rgba<f32, LinearRgb> = rgba_linear!(0.211, 0.937, 0.588, 1.0);
-const BTN_SELECTED_COLOR: Rgba<f32, LinearRgb> = rgba_linear!(0.0, 1.0, 0.0, 1.0);
-const BTN_COLOR: Rgba<f32, LinearRgb> = rgba_linear!(1.0, 1.0, 0.0, 1.0);
+use std::f32::consts::{FRAC_PI_2, PI};
+use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main(flavor = "current_thread")]
-async fn main() -> Result<()> {
+async fn main() {
 	color_eyre::install().unwrap();
-	tracing_subscriber::fmt()
-		.with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-		.pretty()
-		.init();
-	let owned_client = Client::connect().await?;
-	let client = owned_client.handle();
-	let async_loop = owned_client.async_event_loop();
-	client
-		.get_root()
-		.set_base_prefixes(&[directory_relative_path!("../res").to_string()])
-		.unwrap();
-	let mut grid = AppHexGrid::new(&client).await;
-	let mut owned_client = async_loop.stop().await.unwrap();
-	let event_loop = owned_client.sync_event_loop(|handle, _| {
-		let Some(event) = handle.get_root().recv_root_event() else {
-			return;
-		};
-		match event {
-			RootEvent::Ping { response } => response.send(Ok(())),
-			RootEvent::Frame { info } => {
-				grid.frame(info);
-			}
-			RootEvent::SaveState { response } => {
-				response.send(grid.save_state());
-			}
-		}
+
+	let registry = tracing_subscriber::registry();
+	#[cfg(feature = "tracy")]
+	let registry = registry.with({
+		use tracing_subscriber::Layer;
+		tracing_tracy::TracyLayer::new(tracing_tracy::DefaultConfig::default())
+			.with_filter(tracing::level_filters::LevelFilter::DEBUG)
 	});
+	let log_layer = tracing_subscriber::fmt::Layer::new()
+		.with_thread_names(true)
+		.with_ansi(true)
+		.with_line_number(true)
+		.with_filter(EnvFilter::from_default_env());
+	registry.with(log_layer).init();
 
-	tokio::select! {
-		_ = tokio::signal::ctrl_c() => (),
-		e = event_loop => e?,
-	}
-	Ok(())
+	client::run::<HexagonLauncher>(&[&project_local_resources!("../res")]).await
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
-pub struct State {
-	unfurled: bool,
-}
-
-struct AppHexGrid {
-	movable_root: Spatial,
+#[derive(Debug, Serialize, Deserialize)]
+pub struct HexagonLauncher {
+	/// if the hexagon launcher is expanded
+	open: bool,
+	pos: Vector3<f32>,
+	rot: Quaternion<f32>,
+	#[serde(skip)]
+	/// position in the vector is mapped to hex coordinates
 	apps: Vec<App>,
-	button: CenterButton,
-	state: State,
 }
-impl AppHexGrid {
-	async fn new(client: &Arc<ClientHandle>) -> Self {
-		let client_state = client.get_root().get_state().await.unwrap();
-		let state = client_state.data().unwrap_or_default();
 
-		let movable_root =
-			Spatial::create(client.get_root(), Transform::identity(), false).unwrap();
+impl Default for HexagonLauncher {
+	fn default() -> Self {
+		Self {
+			open: false,
+			pos: [0.0; 3].into(),
+			rot: Quat::IDENTITY.into(),
+			apps: Vec::new(),
+		}
+	}
+}
+impl Migrate for HexagonLauncher {
+	type Old = Self;
+}
 
-		let button = CenterButton::new(client, &client_state).unwrap();
-		tokio::time::sleep(Duration::from_millis(10)).await; // give it a bit of time to send the messages properly
+impl ClientState for HexagonLauncher {
+	const APP_ID: &'static str = "org.protostar.hexagon_launcher";
 
-		let mut desktop_files: Vec<DesktopFile> = get_desktop_files()
-			.filter_map(|d| parse_desktop_file(d).ok())
+	fn initial_state_update(&mut self) {
+		// Load desktop files
+		self.apps = get_desktop_files()
+			.filter_map(|d| DesktopFile::parse(d).ok())
 			.filter(|d| !d.no_display)
+			.filter_map(|d| App::new(d).ok())
 			.collect();
 
-		desktop_files.sort_by_key(|d| d.clone().name.unwrap_or_default());
+		self.apps.par_iter().for_each(|app| {
+			app.load_icon();
+		});
 
-		let mut apps = Vec::new();
-		let mut radius = 1;
-		while !desktop_files.is_empty() {
-			let mut hex = HEX_CENTER + HEX_DIRECTION_VECTORS[4].scale(radius);
-			for i in 0..6 {
-				if desktop_files.is_empty() {
-					break;
-				};
-				for _ in 0..radius {
-					if desktop_files.is_empty() {
-						break;
-					};
-					apps.push(
-						App::create_from_desktop_file(
-							button.grabbable.content_parent(),
-							hex.get_coords(),
-							desktop_files.pop().unwrap(),
-							&state,
-						)
-						.unwrap(),
-					);
-					hex = hex.neighbor(i);
-				}
-			}
-			radius += 1;
-		}
-		AppHexGrid {
-			movable_root,
-			apps,
-			button,
-			state,
-		}
+		// Sort by name
+		self.apps
+			.sort_by_key(|app| app.app.name().unwrap_or_default().to_string());
 	}
 }
-impl AppHexGrid {
-	fn frame(&mut self, info: FrameInfo) {
-		self.button.frame(&info);
-		if self.button.button.pressed() {
-			self.button
-				.model
-				.part("Hex")
-				.unwrap()
-				.set_material_parameter("color", MaterialParameter::Color(BTN_SELECTED_COLOR))
-				.unwrap();
-			self.state.unfurled = !self.state.unfurled;
-			for app in &mut self.apps {
-				app.apply_state(&self.state);
-			}
-		} else if self.button.button.released() {
-			self.button
-				.model
-				.part("Hex")
-				.unwrap()
-				.set_material_parameter("color", MaterialParameter::Color(BTN_COLOR))
-				.unwrap();
-		}
-		for app in &mut self.apps {
-			app.frame(&info, &self.state);
-		}
-	}
-
-	fn save_state(&mut self) -> Result<ClientState> {
-		self.movable_root
-			.set_relative_transform(
-				self.button.grabbable.content_parent(),
-				Transform::from_translation([0.0; 3]),
-			)
-			.unwrap();
-		ClientState::new(
-			Some(self.state.clone()),
-			&self.movable_root,
-			[(
-				"content_parent".to_string(),
-				self.button.grabbable.content_parent(),
-			)]
-			.into_iter()
-			.collect(),
+impl Reify for HexagonLauncher {
+	#[tracing::instrument(skip_all)]
+	fn reify(&self) -> impl Element<Self> {
+		// Build UI based on current state
+		Grabbable::new(
+			Shape::Cylinder(CylinderShape {
+				radius: APP_SIZE / 2.0,
+				length: 0.01,
+			}),
+			self.pos,
+			self.rot,
+			|state: &mut Self, pos, rot| {
+				state.pos = pos;
+				state.rot = rot;
+			},
 		)
-	}
-}
-
-struct CenterButton {
-	button: Button,
-	grabbable: Grabbable,
-	model: Model,
-}
-impl CenterButton {
-	fn new(client: &Arc<ClientHandle>, state: &ClientState) -> Result<Self, NodeError> {
-		// (APP_SIZE + PADDING) / 2.0,
-		let button = Button::create(
-			client.get_root(),
-			Transform::identity(),
-			[(APP_SIZE + PADDING) / 2.0; 2],
-			ButtonSettings {
-				visuals: None,
-				..Default::default()
-			},
-		)?;
-		let grabbable = Grabbable::create(
-			client.get_root(),
-			Transform::none(),
-			button.touch_plane().field(),
-			GrabbableSettings {
-				max_distance: 0.025,
-				pointer_mode: PointerMode::Align,
-				magnet: false,
-				..Default::default()
-			},
-		)?;
-		button
-			.touch_plane()
-			.root()
-			.set_spatial_parent(grabbable.content_parent())?;
-
-		let model = Model::create(
-			grabbable.content_parent(),
-			Transform::from_rotation_scale(
-				Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
-				[MODEL_SCALE; 3],
-			),
-			&ResourceID::new_namespaced("protostar", "hexagon/hexagon"),
-		)?;
-		model
-			.part("Hex")?
-			.set_material_parameter("color", MaterialParameter::Color(BTN_COLOR))?;
-		if let Some(content_parent) = state.spatial_anchors(client).get("content_parent") {
-			grabbable
-				.content_parent()
-				.set_relative_transform(content_parent, Transform::identity())?;
-		}
-		Ok(CenterButton {
-			button,
-			grabbable,
-			model,
-		})
-	}
-
-	fn frame(&mut self, info: &FrameInfo) {
-		if self.grabbable.handle_events() {
-			self.grabbable.frame(info);
-		}
-		self.button.handle_events();
+		.field_transform(Transform::from_rotation(Quat::from_rotation_x(FRAC_PI_2)))
+		.pointer_mode(PointerMode::Align)
+		.zoneable(false)
+		.build()
+		.child(
+			Button::new(|state: &mut HexagonLauncher| {
+				state.open = !state.open;
+			})
+			.pos([0.0, 0.0, 0.005])
+			.size([APP_SIZE / 2.0; 2])
+			.build(),
+		)
+		.child(
+			Model::namespaced("protostar", "hexagon/hexagon")
+				.transform(Transform::from_rotation_scale(
+					Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
+					[MODEL_SCALE; 3],
+				))
+				.part(ModelPart::new("Hex").mat_param(
+					"color",
+					MaterialParameter::Color(if self.open {
+						BTN_SELECTED_COLOR
+					} else {
+						BTN_COLOR
+					}),
+				))
+				.build(),
+		)
+		.children(
+			self.open
+				.then(|| {
+					self.apps.iter().enumerate().map(|(i, app)| {
+						Spatial::default()
+							.pos(Hex::spiral(i + 1).get_coords())
+							.build()
+							.identify(&app.app.name())
+							.child(app.reify_substate(move |state: &mut HexagonLauncher| {
+								state.apps.get_mut(i)
+							}))
+					})
+				})
+				.into_iter()
+				.flatten(),
+		)
 	}
 }

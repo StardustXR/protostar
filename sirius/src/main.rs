@@ -1,35 +1,40 @@
-use clap::{self, Parser};
-use color_eyre::eyre::Result;
-use glam::{Quat, Vec3};
-use manifest_dir_macros::directory_relative_path;
-use protostar::{
-	application::Application,
-	xdg::{parse_desktop_file, DesktopFile, Icon, IconType},
+use asteroids::{
+	ClientState, CustomElement, Element, Migrate, Reify, Transformable, client,
+	elements::{Button, Grabbable, Model, ModelPart, PointerMode, Spatial},
 };
+use clap::Parser;
+use glam::Quat;
+use mint::{Quaternion, Vector3};
+use protostar::xdg::DesktopFile;
 use serde::{Deserialize, Serialize};
+use single::{App, BTN_COLOR, BTN_SELECTED_COLOR};
 use stardust_xr_fusion::{
-	client::Client,
-	core::values::{color::rgba_linear, ResourceID, Vector3},
-	drawable::{
-		MaterialParameter, Model, ModelPartAspect, Text, TextBounds, TextFit, TextStyle, XAlign,
-		YAlign,
-	},
-	fields::{Field, Shape},
-	node::{NodeError, NodeType},
-	root::{ClientState, FrameInfo, RootAspect},
-	spatial::{Spatial, SpatialAspect, SpatialRefAspect, Transform}, ClientHandle,
+	drawable::MaterialParameter, fields::Shape, project_local_resources, spatial::Transform,
 };
-use stardust_xr_molecules::{
-	button::{Button, ButtonSettings},
-	FrameSensitive, Grabbable, GrabbableSettings, UIElement,
-};
-use std::{f32::consts::PI, path::PathBuf};
-
-use tween::{QuartInOut, Tweener};
+use std::path::PathBuf;
+use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 use walkdir::WalkDir;
 
-const APP_SIZE: f32 = 0.06;
-const ACTIVATION_DISTANCE: f32 = 0.5;
+#[tokio::main(flavor = "current_thread")]
+async fn main() {
+	color_eyre::install().unwrap();
+
+	let registry = tracing_subscriber::registry();
+	#[cfg(feature = "tracy")]
+	let registry = registry.with({
+		use tracing_subscriber::Layer;
+		tracing_tracy::TracyLayer::new(tracing_tracy::DefaultConfig::default())
+			.with_filter(tracing::level_filters::LevelFilter::DEBUG)
+	});
+	let log_layer = tracing_subscriber::fmt::Layer::new()
+		.with_thread_names(true)
+		.with_ansi(true)
+		.with_line_number(true)
+		.with_filter(EnvFilter::from_default_env());
+	registry.with(log_layer).init();
+
+	client::run::<Sirius>(&[&project_local_resources!("../res")]).await
+}
 
 #[derive(Debug, Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -38,83 +43,45 @@ struct Args {
 	apps_directory: PathBuf,
 }
 
-#[tokio::main(flavor = "current_thread")]
-async fn main() -> Result<()> {
-	color_eyre::install()?;
-
-	let args = Args::parse();
-	if !args.apps_directory.is_dir() {
-		panic!(
-			"{} is not a direcotry",
-			args.apps_directory.to_string_lossy()
-		)
-	}
-
-	let owned_client = Client::connect().await?;
-	let client = owned_client.handle();
-	let async_loop = owned_client.async_event_loop();
-	client
-		.get_root()
-		.set_base_prefixes(&[directory_relative_path!("../res").to_string()])?;
-	let mut sirius = Sirius::new(&client, args)?;
-
-	let mut owned_client = async_loop.stop().await.unwrap();
-	let event_loop = owned_client.sync_event_loop(|handle, _| {
-		let Some(event) = handle.get_root().recv_root_event() else {
-			return;
-		};
-		match event {
-			stardust_xr_fusion::root::RootEvent::Ping { response } => response.send(Ok(())),
-			stardust_xr_fusion::root::RootEvent::Frame { info } => {
-				sirius.frame(info);
-			}
-			stardust_xr_fusion::root::RootEvent::SaveState { response } => {
-				response.send(sirius.save_state());
-			}
-		}
-	});
-
-	tokio::select! {
-		_ = tokio::signal::ctrl_c() => (),
-		e = event_loop => e?,
-	}
-	Ok(())
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct State {
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Sirius {
 	visible: bool,
+	pos: Vector3<f32>,
+	rot: Quaternion<f32>,
+	#[serde(skip)]
+	apps: Vec<App>,
 }
 
-struct Sirius {
-	button: Button,
-	model: Model,
-	clients: Vec<App>,
-	state: State,
-	grabbable: Grabbable,
+impl Default for Sirius {
+	fn default() -> Self {
+		Self {
+			visible: false,
+			pos: [0.0; 3].into(),
+			rot: Quat::IDENTITY.into(),
+			apps: Vec::new(),
+		}
+	}
 }
-impl Sirius {
-	fn new(client: &ClientHandle, args: Args) -> Result<Self, NodeError> {
-		let root = Spatial::create(client.get_root(), Transform::identity(), false).unwrap();
 
-		let field =
-			Field::create(&root, Transform::identity(), Shape::Box([0.1; 3].into())).unwrap();
-		let grabbable = Grabbable::create(
-			&root,
-			Transform::identity(),
-			&field,
-			GrabbableSettings::default(),
-		)?;
-		let button = Button::create(
-			grabbable.content_parent(),
-			Transform::identity(),
-			[0.1; 2],
-			ButtonSettings::default(),
-		)?;
+impl Migrate for Sirius {
+	type Old = Self;
+}
+
+impl ClientState for Sirius {
+	const APP_ID: &'static str = "org.protostar.sirius";
+
+	fn initial_state_update(&mut self) {
+		let args = Args::parse();
+		if !args.apps_directory.is_dir() {
+			panic!(
+				"{} is not a directory",
+				args.apps_directory.to_string_lossy()
+			)
+		}
 
 		let walkdir = WalkDir::new(args.apps_directory.canonicalize().unwrap());
 
-		let clients: Vec<App> = walkdir
+		self.apps = walkdir
 			.into_iter()
 			.filter_map(|path| path.ok())
 			.map(|entry| entry.into_path())
@@ -123,369 +90,68 @@ impl Sirius {
 					&& path.extension().is_some()
 					&& path.extension().unwrap() == "desktop"
 			})
-			.filter_map(|path| {
-				App::create_from_desktop_file(
-					grabbable.content_parent(),
-					[0.0; 3],
-					parse_desktop_file(path).ok()?,
-				)
-				.ok()
-			})
+			.filter_map(|path| App::new(DesktopFile::parse(path).ok()?).ok())
 			.collect();
-
-		let model = Model::create(
-			grabbable.content_parent(),
-			Transform::identity(),
-			&ResourceID::new_namespaced("protostar", "button"),
-		)?;
-		field.set_spatial_parent(grabbable.content_parent())?;
-		let state = State { visible: false };
-
-		Ok(Sirius {
-			button,
-			model,
-			clients,
-			state,
-			grabbable,
-		})
 	}
-
-	//    fn left_hand(input_data: &InputData, _: &()) -> bool {
-	//       match &input_data.input {
-	//            InputDataType::Hand(h) => !h.right,
-	//            _ => false,
-	//        }
-	//    }
 }
-impl Sirius {
-	fn frame(&mut self, info: FrameInfo) {
-		for app in &mut self.clients {
-			app.frame(&info);
-		}
-
-		if self.grabbable.handle_events() {
-			self.grabbable.frame(&info);
-		};
-		if self.button.handle_events() && self.button.pressed() {
-			println!("Touch started");
-			self.state.visible = !self.state.visible;
-			match self.state.visible {
-				true => {
-					for (pos, star) in self.clients.iter().enumerate() {
+impl Reify for Sirius {
+	fn reify(&self) -> impl Element<Self> {
+		Grabbable::new(
+			Shape::Box([0.1; 3].into()),
+			self.pos,
+			self.rot,
+			|state: &mut Self, pos, rot| {
+				state.pos = pos;
+				state.rot = rot;
+			},
+		)
+		.pointer_mode(PointerMode::Align)
+		.zoneable(false)
+		.build()
+		.child(
+			Button::new(|state: &mut Sirius| {
+				state.visible = !state.visible;
+			})
+			.pos([0.0, 0.0, 0.005])
+			.size([0.1; 2])
+			.build(),
+		)
+		.child(
+			Model::namespaced("protostar", "button")
+				.transform(Transform::identity())
+				.part(ModelPart::new("?????").mat_param(
+					"color",
+					MaterialParameter::Color(if self.visible {
+						BTN_SELECTED_COLOR
+					} else {
+						BTN_COLOR
+					}),
+				))
+				.build(),
+		)
+		.children(
+			self.visible
+				.then(|| {
+					self.apps.iter().enumerate().map(|(pos, app)| {
 						let mut starpos = (pos as f32 + 1.0) / 10.0;
 						match starpos % 0.2 == 0.0 {
 							true => starpos = -starpos / 2.0,
 							false => starpos = (starpos - 0.1) / 2.0,
 						}
-						println!("{}", starpos);
-						star.content_parent()
-							.set_relative_transform(
-								self.grabbable.content_parent(),
-								Transform::from_translation([starpos, 0.1, 0.0]),
-							)
-							.unwrap();
-					}
-				}
-				false => {
-					for star in &self.clients {
-						star.content_parent()
-							.set_relative_transform(
-								self.grabbable.content_parent(),
-								Transform::from_translation([0.0; 3]),
-							)
-							.ok();
-					}
-				}
-			}
-			self.model
-				.part("?????")
-				.unwrap()
-				.set_material_parameter(
-					"color",
-					MaterialParameter::Color(rgba_linear!(0.0, 1.0, 0.0, 1.0)),
-				)
-				.unwrap();
-			self.model
-				.part("?????")
-				.unwrap()
-				.set_material_parameter(
-					"emission_factor",
-					MaterialParameter::Color(rgba_linear!(0.0, 0.75, 0.0, 0.75)),
-				)
-				.unwrap();
-		}
 
-		if self.button.released() {
-			println!("Touch ended");
-			self.model
-				.part("?????")
-				.unwrap()
-				.set_material_parameter(
-					"color",
-					MaterialParameter::Color(rgba_linear!(1.0, 0.0, 0.0, 1.0)),
-				)
-				.unwrap();
-			self.model
-				.part("?????")
-				.unwrap()
-				.set_material_parameter(
-					"emission_factor",
-					MaterialParameter::Color(rgba_linear!(0.5, 0.0, 0.0, 0.5)),
-				)
-				.unwrap();
-		}
-	}
-
-	fn save_state(&mut self) -> Result<ClientState> {
-		ClientState::new(
-			Some(self.state.clone()),
-			self.grabbable.content_parent(),
-			[(
-				"content_parent".to_string(),
-				self.grabbable.content_parent(),
-			)]
-			.into_iter()
-			.collect(),
+						Spatial::default()
+							.pos([starpos, 0.1, 0.0])
+							.build()
+							.identify(&app.app.name())
+							.child(
+								app.reify_substate(move |state: &mut Sirius| {
+									state.apps.get_mut(pos)
+								}),
+							)
+					})
+				})
+				.into_iter()
+				.flatten(),
 		)
-	}
-}
-
-fn model_from_icon(parent: &Spatial, icon: &Icon) -> Result<Model> {
-	match &icon.icon_type {
-		IconType::Png => {
-			let t = Transform::from_rotation_scale(
-				Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
-				[APP_SIZE * 0.5; 3],
-			);
-
-			let model = Model::create(
-				parent,
-				t,
-				&ResourceID::new_namespaced("protostar", "hexagon/hexagon"),
-			)?;
-			model.part("Hex")?.set_material_parameter(
-				"color",
-				MaterialParameter::Color(rgba_linear!(0.0, 1.0, 1.0, 1.0)),
-			)?;
-			model.part("Icon")?.set_material_parameter(
-				"diffuse",
-				MaterialParameter::Texture(ResourceID::Direct(icon.path.clone())),
-			)?;
-			Ok(model)
-		}
-		IconType::Gltf => Ok(Model::create(
-			parent,
-			Transform::from_scale([0.05; 3]),
-			&ResourceID::new_direct(icon.path.clone())?,
-		)?),
-		_ => panic!("Invalid Icon Type"),
-	}
-}
-
-pub struct App {
-	application: Application,
-	parent: Spatial,
-	position: Vector3<f32>,
-	grabbable: Grabbable,
-	_field: Field,
-	icon: Model,
-	label: Option<Text>,
-	grabbable_shrink: Option<Tweener<f32, f64, QuartInOut>>,
-	grabbable_grow: Option<Tweener<f32, f64, QuartInOut>>,
-	grabbable_move: Option<Tweener<f32, f64, QuartInOut>>,
-	currently_shown: bool,
-}
-impl App {
-	pub fn create_from_desktop_file(
-		parent: &Spatial,
-		position: impl Into<Vector3<f32>>,
-		desktop_file: DesktopFile,
-	) -> Result<Self> {
-		let position = position.into();
-		let field = Field::create(
-			parent,
-			Transform::identity(),
-			Shape::Box([APP_SIZE; 3].into()),
-		)?;
-		let application = Application::create(desktop_file)?;
-		let icon = application.icon(128, false);
-		let grabbable = Grabbable::create(
-			parent,
-			Transform::from_translation(position),
-			&field,
-			GrabbableSettings {
-				max_distance: 0.01,
-				zoneable: false,
-				..Default::default()
-			},
-		)?;
-		grabbable.content_parent().set_spatial_parent(parent)?;
-		field.set_spatial_parent(grabbable.content_parent())?;
-		let icon = icon
-			.map(|i| model_from_icon(grabbable.content_parent(), &i))
-			.unwrap_or_else(|| {
-				Ok(Model::create(
-					grabbable.content_parent(),
-					Transform::from_rotation_scale(
-						Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
-						[APP_SIZE * 0.5; 3],
-					),
-					&ResourceID::new_namespaced("protostar", "hexagon/hexagon"),
-				)?)
-			})?;
-
-		let label_style = TextStyle {
-			character_height: APP_SIZE * 2.0,
-			bounds: Some(TextBounds {
-				bounds: [1.0; 2].into(),
-				fit: TextFit::Wrap,
-				anchor_align_x: XAlign::Center,
-				anchor_align_y: YAlign::Center,
-			}),
-
-			text_align_x: XAlign::Center,
-			text_align_y: YAlign::Center,
-			..Default::default()
-		};
-		let label = application.name().and_then(|name| {
-			Text::create(
-				&icon,
-				Transform::from_translation_rotation(
-					[0.0, 0.1, -(APP_SIZE * 4.0)],
-					Quat::from_rotation_x(PI * 0.5),
-				),
-				name,
-				label_style,
-			)
-			.ok()
-		});
-		Ok(App {
-			parent: parent.clone(),
-			position,
-			grabbable,
-			_field: field,
-			label,
-			application,
-			icon,
-			grabbable_shrink: None,
-			grabbable_grow: None,
-			grabbable_move: None,
-			currently_shown: true,
-		})
-	}
-	pub fn content_parent(&self) -> &Spatial {
-		self.grabbable.content_parent()
-	}
-	pub fn toggle(&mut self) {
-		self.grabbable.set_enabled(!self.currently_shown).unwrap();
-		if self.currently_shown {
-			self.grabbable_move = Some(Tweener::quart_in_out(1.0, 0.0001, 0.25)); //TODO make the scale a parameter
-		} else {
-			self.icon.set_enabled(true).unwrap();
-			if let Some(label) = self.label.as_ref() {
-				label.set_enabled(true).unwrap()
-			}
-			self.grabbable_move = Some(Tweener::quart_in_out(0.0001, 1.0, 0.25));
-		}
-		self.currently_shown = !self.currently_shown;
-	}
-
-	fn frame(&mut self, info: &FrameInfo) {
-		if !self.grabbable.handle_events() {
-			return;
-		}
-		self.grabbable.frame(info);
-
-		if let Some(grabbable_move) = &mut self.grabbable_move {
-			if !grabbable_move.is_finished() {
-				let scale = grabbable_move.move_by(info.delta.into());
-				self.grabbable
-					.content_parent()
-					.set_relative_transform(
-						&self.parent,
-						Transform::from_translation(Vec3::from(self.position) * scale),
-					)
-					.unwrap();
-			} else {
-				if grabbable_move.final_value() == 0.0001 {
-					self.icon.set_enabled(false).unwrap();
-					if let Some(label) = self.label.as_ref() {
-						label.set_enabled(false).unwrap()
-					}
-				}
-				self.grabbable_move = None;
-			}
-		}
-		if let Some(grabbable_shrink) = &mut self.grabbable_shrink {
-			if !grabbable_shrink.is_finished() {
-				let scale = grabbable_shrink.move_by(info.delta.into());
-				self.grabbable
-					.content_parent()
-					.set_relative_transform(&self.parent, Transform::from_scale([scale; 3]))
-					.unwrap();
-			} else {
-				self.grabbable
-					.content_parent()
-					.set_spatial_parent(&self.parent)
-					.unwrap();
-				if self.currently_shown {
-					self.grabbable_grow = Some(Tweener::quart_in_out(0.0001, 1.0, 0.25));
-					self.grabbable.cancel_angular_velocity();
-					self.grabbable.cancel_linear_velocity();
-				}
-				self.grabbable_shrink = None;
-				self.grabbable
-					.content_parent()
-					.set_relative_transform(
-						&self.parent,
-						Transform::from_translation(self.position),
-					)
-					.unwrap();
-				self.grabbable
-					.content_parent()
-					.set_relative_transform(&self.parent, Transform::from_rotation(Quat::default()))
-					.unwrap();
-				self.icon
-					.set_local_transform(Transform::from_rotation(
-						Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
-					))
-					.unwrap();
-			}
-		} else if let Some(grabbable_grow) = &mut self.grabbable_grow {
-			if !grabbable_grow.is_finished() {
-				let scale = grabbable_grow.move_by(info.delta.into());
-				self.grabbable
-					.content_parent()
-					.set_relative_transform(&self.parent, Transform::from_scale([scale; 3]))
-					.unwrap();
-			} else {
-				self.grabbable
-					.content_parent()
-					.set_spatial_parent(&self.parent)
-					.unwrap();
-				self.grabbable_grow = None;
-			}
-		} else if self.grabbable.grab_action().actor_stopped() {
-			self.grabbable_shrink = Some(Tweener::quart_in_out(APP_SIZE * 0.5, 0.0001, 0.25));
-
-			let application = self.application.clone();
-			let space = self.content_parent().clone();
-			let parent = self.parent.clone();
-
-			//TODO: split the executable string for the args
-			tokio::task::spawn(async move {
-				let distance_vector = space
-					.get_transform(&parent)
-					.await
-					.unwrap()
-					.translation
-					.unwrap();
-				let distance = Vec3::from(distance_vector).length_squared();
-
-				if distance > ACTIVATION_DISTANCE {
-					let _ = application.launch(&space);
-				}
-			});
-		}
 	}
 }

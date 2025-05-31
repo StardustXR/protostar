@@ -3,15 +3,28 @@ name = "hexagon_launcher"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+tracy = ["dep:tracing-tracy", "asteroids/tracy"]
+
 [dependencies]
 protostar = { path = "../protostar" }
 color-eyre = "0.6.2"
 clap = "4.4.6"
 manifest-dir-macros = "0.1.18"
 glam = { version = "0.25.0", features = ["mint"] }
-tween = "2.0.1"
-tracing-subscriber = "0.3.17"
+mint = "0.5.9"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+tracing-tracy = { version = "0.11.4", default-features = false, features = [
+	"enable",
+	"flush-on-exit",
+	"only-localhost",
+	"sampling",
+	"ondemand",
+], optional = true }
 tokio = { workspace = true }
 serde = { workspace = true }
 stardust-xr-fusion = { workspace = true }
-stardust-xr-molecules = { workspace = true }
+asteroids = { workspace = true }
+tracing = "0.1.41"
+single = { path = "../single" }
+rayon = "1.11.0"

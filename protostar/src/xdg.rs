@@ -95,87 +95,11 @@ pub fn get_desktop_files() -> impl Iterator<Item = PathBuf> {
 #[test]
 fn test_get_desktop_files() {
 	let desktop_files = get_desktop_files().collect::<Vec<_>>();
-	assert!(desktop_files
-		.iter()
-		.any(|file| file.ends_with("com.belmoussaoui.ashpd.demo.desktop")));
-}
-
-pub fn parse_desktop_file(path: PathBuf) -> Result<DesktopFile, String> {
-	// Open the file in read-only mode
-	let file = match fs::File::open(
-		env::current_dir()
-			.map_err(|e| e.to_string())?
-			.join(path.clone()),
-	) {
-		Ok(file) => file,
-		Err(err) => return Err(format!("Failed to open file: {}", err)),
-	};
-
-	let reader = BufReader::new(file);
-
-	// Create temporary variables to hold the parsed values
-	let mut name = None;
-	let mut command = None;
-	let mut categories = Vec::new();
-	let mut icon = None;
-	let mut no_display = false;
-	let mut desktop_entry_found = false;
-
-	let re = Regex::new(r"^\[([^\]]*)\]$").unwrap();
-
-	// Loop through each line of the file
-	for line in reader.lines() {
-		let line = match line {
-			Ok(line) => line,
-			Err(err) => return Err(format!("Failed to read line: {}", err)),
-		};
-
-		// Skip empty lines and lines that start with "#" (comments)
-		if line.is_empty() || line.starts_with('#') {
-			continue;
-		}
-
-		if let Some(captures) = re.captures(&line) {
-			let entry = captures.get(1).unwrap();
-			desktop_entry_found = entry.as_str().contains("Desktop Entry");
-		}
-
-		if !desktop_entry_found {
-			continue;
-		}
-		// Split the line into a key-value pair by looking for the first "=" character
-		let parts = line.split_once('=');
-		let (key, value) = match parts {
-			Some((key, value)) => (key, value),
-			None => continue,
-		};
-
-		// Parse the key-value pair based on the key
-		match key {
-			"Name" => name = Some(value.to_string()),
-			"Exec" => command = Some(value.to_string()),
-			"Categories" => {
-				categories = value
-					.split(';')
-					.map(|s| s.to_string())
-					.filter(|s| !s.is_empty())
-					.collect()
-			}
-			"Icon" => icon = Some(value.to_string()),
-			"NoDisplay" => no_display = value == "true",
-			_ => (), // Ignore unknown keys
-		}
-	}
-
-	// Create and return a new DesktopFile instance with the parsed values
-	Ok(DesktopFile {
-		path,
-		name,
-		command,
-		categories,
-		icon,
-		no_display,
-	})
+	assert!(
+		desktop_files
+			.iter()
+			.any(|file| file.ends_with("com.belmoussaoui.ashpd.demo.desktop"))
+	);
 }
 
 #[test]
@@ -187,7 +111,7 @@ fn test_parse_desktop_file() {
 	fs::write(&file, data).unwrap();
 
 	// Parse the test desktop file
-	let desktop_file = parse_desktop_file(file).unwrap();
+	let desktop_file = DesktopFile::parse(file).unwrap();
 
 	// Check the parsed values
 	assert_eq!(desktop_file.name, Some("Test".to_string()));
@@ -198,8 +122,8 @@ fn test_parse_desktop_file() {
 	);
 	assert_eq!(desktop_file.icon, Some("test.png".to_string()));
 }
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(into = "PathBuf", from = "PathBuf")]
 pub struct DesktopFile {
 	path: PathBuf,
 	pub name: Option<String>,
@@ -207,6 +131,97 @@ pub struct DesktopFile {
 	pub categories: Vec<String>,
 	pub icon: Option<String>,
 	pub no_display: bool,
+}
+
+impl From<DesktopFile> for PathBuf {
+	fn from(df: DesktopFile) -> Self {
+		df.path
+	}
+}
+impl From<PathBuf> for DesktopFile {
+	fn from(path: PathBuf) -> Self {
+		Self::parse(path).unwrap()
+	}
+}
+
+impl DesktopFile {
+	pub fn parse(path: PathBuf) -> Result<Self, String> {
+		// Open the file in read-only mode
+		let file = match fs::File::open(
+			env::current_dir()
+				.map_err(|e| e.to_string())?
+				.join(path.clone()),
+		) {
+			Ok(file) => file,
+			Err(err) => return Err(format!("Failed to open file: {err}")),
+		};
+
+		let reader = BufReader::new(file);
+
+		// Create temporary variables to hold the parsed values
+		let mut name = None;
+		let mut command = None;
+		let mut categories = Vec::new();
+		let mut icon = None;
+		let mut no_display = false;
+		let mut desktop_entry_found = false;
+
+		let re = Regex::new(r"^\[([^\]]*)\]$").unwrap();
+
+		// Loop through each line of the file
+		for line in reader.lines() {
+			let line = match line {
+				Ok(line) => line,
+				Err(err) => return Err(format!("Failed to read line: {err}")),
+			};
+
+			// Skip empty lines and lines that start with "#" (comments)
+			if line.is_empty() || line.starts_with('#') {
+				continue;
+			}
+
+			if let Some(captures) = re.captures(&line) {
+				let entry = captures.get(1).unwrap();
+				desktop_entry_found = entry.as_str().contains("Desktop Entry");
+			}
+
+			if !desktop_entry_found {
+				continue;
+			}
+			// Split the line into a key-value pair by looking for the first "=" character
+			let parts = line.split_once('=');
+			let (key, value) = match parts {
+				Some((key, value)) => (key, value),
+				None => continue,
+			};
+
+			// Parse the key-value pair based on the key
+			match key {
+				"Name" => name = Some(value.to_string()),
+				"Exec" => command = Some(value.to_string()),
+				"Categories" => {
+					categories = value
+						.split(';')
+						.map(|s| s.to_string())
+						.filter(|s| !s.is_empty())
+						.collect()
+				}
+				"Icon" => icon = Some(value.to_string()),
+				"NoDisplay" => no_display = value == "true",
+				_ => (), // Ignore unknown keys
+			}
+		}
+
+		// Create and return a new DesktopFile instance with the parsed values
+		Ok(DesktopFile {
+			path,
+			name,
+			command,
+			categories,
+			icon,
+			no_display,
+		})
+	}
 }
 
 const ICON_SIZES: [u16; 7] = [512, 256, 128, 64, 48, 32, 24];
