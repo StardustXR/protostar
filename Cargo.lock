@@ -1165,6 +1165,7 @@ dependencies = [
  "clap",
  "color-eyre",
  "glam 0.25.0",
+ "libc",
  "manifest-dir-macros",
  "protostar",
  "serde",
@@ -1365,9 +1366,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.158"
+version = "0.2.174"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d8adc4bb1803a324070e64a98ae98f38934d91957a99cfb3a43dcbc01bc56439"
+checksum = "1171693293099992e19cddea4e8b849964e9846f4acee11b3948bcc337be8776"
 
 [[package]]
 name = "libredox"
