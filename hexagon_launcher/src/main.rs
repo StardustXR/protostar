@@ -34,10 +34,12 @@ const ACTIVATION_DISTANCE: f32 = 0.05;
 const DEFAULT_HEX_COLOR: Rgba<f32, LinearRgb> = rgba_linear!(0.211, 0.937, 0.588, 1.0);
 const BTN_SELECTED_COLOR: Rgba<f32, LinearRgb> = rgba_linear!(0.0, 1.0, 0.0, 1.0);
 const BTN_COLOR: Rgba<f32, LinearRgb> = rgba_linear!(1.0, 1.0, 0.0, 1.0);
-
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
-	color_eyre::install().unwrap();
+        unsafe {
+	    libc::signal(libc::SIGPIPE, libc::SIG_DFL);
+        }
+        color_eyre::install().unwrap();
 	tracing_subscriber::fmt()
 		.with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
 		.pretty()
