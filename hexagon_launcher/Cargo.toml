@@ -15,4 +15,3 @@ tokio = { workspace = true }
 serde = { workspace = true }
 stardust-xr-fusion = { workspace = true }
 stardust-xr-molecules = { workspace = true }
-libc = "0.2.174"
