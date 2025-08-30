@@ -2,7 +2,6 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     crane = {
-      inputs.nixpkgs.follows = "nixpkgs";
       url = "github:ipetkov/crane";
     };
   };
@@ -13,9 +12,9 @@
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
       nixpkgsFor = forAllSystems (system: import nixpkgs { inherit system; });
   in {
-    packages = forAllSystems (system: let pkgs = nixpkgsFor.${system}; in {
-      default = crane.lib.${system}.buildPackage {
-        pname = "protostar";
+    packages = forAllSystems (system: let pkgs = nixpkgsFor.${system}; craneLib = crane.mkLib pkgs; in {
+      default = craneLib.buildPackage {
+        pname = "hexagon-launcher";
         version = "0.1.0";
         src = ./.;
         
