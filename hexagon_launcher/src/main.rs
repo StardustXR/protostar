@@ -5,24 +5,24 @@ use app::App;
 use color_eyre::eyre::Result;
 use glam::Quat;
 use hex::{HEX_CENTER, HEX_DIRECTION_VECTORS};
-use manifest_dir_macros::directory_relative_path;
-use protostar::xdg::{get_desktop_files, parse_desktop_file, DesktopFile};
+use protostar::xdg::{DesktopFile, get_desktop_files, parse_desktop_file};
 use serde::{Deserialize, Serialize};
 use stardust_xr_fusion::{
+	ClientHandle,
 	client::Client,
 	core::values::{
-		color::{color_space::LinearRgb, rgba_linear, Rgba},
 		ResourceID,
+		color::{Rgba, color_space::LinearRgb, rgba_linear},
 	},
 	drawable::{MaterialParameter, Model, ModelPartAspect},
 	node::NodeError,
+	project_local_resources,
 	root::{ClientState, FrameInfo, RootAspect, RootEvent},
 	spatial::{Spatial, SpatialAspect, Transform},
-	ClientHandle,
 };
 use stardust_xr_molecules::{
-	button::{Button, ButtonSettings},
 	FrameSensitive, Grabbable, GrabbableSettings, PointerMode, UIElement,
+	button::{Button, ButtonSettings},
 };
 use std::{f32::consts::PI, sync::Arc, time::Duration};
 
@@ -34,23 +34,18 @@ const ACTIVATION_DISTANCE: f32 = 0.05;
 const DEFAULT_HEX_COLOR: Rgba<f32, LinearRgb> = rgba_linear!(0.211, 0.937, 0.588, 1.0);
 const BTN_SELECTED_COLOR: Rgba<f32, LinearRgb> = rgba_linear!(0.0, 1.0, 0.0, 1.0);
 const BTN_COLOR: Rgba<f32, LinearRgb> = rgba_linear!(1.0, 1.0, 0.0, 1.0);
+
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
-        unsafe {
-	    libc::signal(libc::SIGPIPE, libc::SIG_DFL);
-        }
-        color_eyre::install().unwrap();
+	color_eyre::install().unwrap();
 	tracing_subscriber::fmt()
 		.with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
 		.pretty()
 		.init();
 	let owned_client = Client::connect().await?;
+	owned_client.setup_resources(&[&project_local_resources!("../res")])?;
 	let client = owned_client.handle();
 	let async_loop = owned_client.async_event_loop();
-	client
-		.get_root()
-		.set_base_prefixes(&[directory_relative_path!("../res").to_string()])
-		.unwrap();
 	let mut grid = AppHexGrid::new(&client).await;
 	let mut owned_client = async_loop.stop().await.unwrap();
 	let event_loop = owned_client.sync_event_loop(|handle, _| {
