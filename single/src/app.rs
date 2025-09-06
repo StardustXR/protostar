@@ -155,7 +155,6 @@ impl Reify for App {
 					.text_align_x(XAlign::Center)
 					.text_align_y(YAlign::Center)
 					.pos([0.0, -APP_SIZE * 0.35, 0.001])
-					.rot(Quat::from_rotation_y(PI))
 					.build(),
 			),
 		)
