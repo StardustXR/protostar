@@ -147,10 +147,10 @@ impl Reify for App {
 				Text::new(self.app.name().unwrap_or_default())
 					.character_height(0.005)
 					.bounds(TextBounds {
-						bounds: [0.5, 0.5].into(),
+						bounds: [0.05, 0.05].into(),
 						fit: TextFit::Wrap,
 						anchor_align_x: XAlign::Center,
-						anchor_align_y: YAlign::Top,
+						anchor_align_y: YAlign::Center,
 					})
 					.text_align_x(XAlign::Center)
 					.text_align_y(YAlign::Center)
