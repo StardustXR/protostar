@@ -7,9 +7,10 @@ use mint::{Quaternion, Vector3};
 use protostar::application::Application;
 use protostar::xdg::{DesktopFile, Icon, IconType};
 use serde::{Deserialize, Serialize};
-use stardust_xr_fusion::drawable::{TextBounds, TextFit};
+use stardust_xr_fusion::drawable::{Line, LinePoint, TextBounds, TextFit};
 use stardust_xr_fusion::node::NodeError;
 use stardust_xr_fusion::values::ResourceID;
+use stardust_xr_fusion::values::color::rgba_linear;
 use stardust_xr_fusion::{
 	drawable::{MaterialParameter, XAlign, YAlign},
 	fields::{CylinderShape, Shape},
@@ -147,14 +148,14 @@ impl Reify for App {
 				Text::new(self.app.name().unwrap_or_default())
 					.character_height(0.005)
 					.bounds(TextBounds {
-						bounds: [0.05, 0.05].into(),
+						bounds: [0.04, 0.04].into(),
 						fit: TextFit::Wrap,
 						anchor_align_x: XAlign::Center,
-						anchor_align_y: YAlign::Center,
+						anchor_align_y: YAlign::Bottom,
 					})
 					.text_align_x(XAlign::Center)
-					.text_align_y(YAlign::Center)
-					.pos([0.0, -APP_SIZE * 0.35, 0.001])
+					.text_align_y(YAlign::Bottom)
+					.pos([0.0, -APP_SIZE * 0.35, 0.002])
 					.build(),
 			),
 		)
