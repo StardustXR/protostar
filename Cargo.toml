@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["app_grid", "hexagon_launcher", "protostar", "single", "sirius"]
+members = ["hexagon_launcher", "protostar", "single", "sirius"]
 
 [workspace.dependencies]
 tokio = { version = "1.47.1", features = ["rt", "tokio-macros", "sync"] }
@@ -14,7 +14,7 @@ branch = "dev"
 git = "https://github.com/StardustXR/molecules.git"
 branch = "dev"
 
-[workspace.dependencies.asteroids]
+[workspace.dependencies.stardust-xr-asteroids]
 git = "https://github.com/StardustXR/asteroids.git"
 branch = "dev"
 

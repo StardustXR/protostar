@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [features]
-tracy = ["dep:tracing-tracy", "asteroids/tracy"]
+tracy = ["dep:tracing-tracy", "stardust-xr-asteroids/tracy"]
 
 [dependencies]
 protostar = { path = "../protostar" }
@@ -18,7 +18,7 @@ tracing-tracy = { version = "0.11.4", optional = true }
 tokio = { workspace = true }
 serde = { workspace = true }
 stardust-xr-fusion = { workspace = true }
-asteroids = { workspace = true }
+stardust-xr-asteroids = { workspace = true }
 tracing = "0.1.41"
 walkdir = "2.4.0"
 single = { path = "../single" }

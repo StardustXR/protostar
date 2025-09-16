@@ -1,16 +1,15 @@
-use asteroids::elements::{
-	Grabbable, Lines, Model, ModelPart, PointerMode, Text, line_from_points,
-};
-use asteroids::{CustomElement, Element, Reify, Transformable};
 use glam::{Quat, Vec3};
 use mint::{Quaternion, Vector3};
 use protostar::application::Application;
 use protostar::xdg::{DesktopFile, Icon, IconType};
 use serde::{Deserialize, Serialize};
-use stardust_xr_fusion::drawable::{Line, LinePoint, TextBounds, TextFit};
+use stardust_xr_asteroids::elements::{
+	Grabbable, Lines, Model, ModelPart, PointerMode, Text, line_from_points,
+};
+use stardust_xr_asteroids::{CustomElement, Element, Reify, Transformable};
+use stardust_xr_fusion::drawable::{TextBounds, TextFit};
 use stardust_xr_fusion::node::NodeError;
 use stardust_xr_fusion::values::ResourceID;
-use stardust_xr_fusion::values::color::rgba_linear;
 use stardust_xr_fusion::{
 	drawable::{MaterialParameter, XAlign, YAlign},
 	fields::{CylinderShape, Shape},
@@ -153,8 +152,8 @@ impl Reify for App {
 						anchor_align_x: XAlign::Center,
 						anchor_align_y: YAlign::Bottom,
 					})
-					.text_align_x(XAlign::Center)
-					.text_align_y(YAlign::Bottom)
+					.align_x(XAlign::Center)
+					.align_y(YAlign::Bottom)
 					.pos([0.0, -APP_SIZE * 0.35, 0.002])
 					.build(),
 			),

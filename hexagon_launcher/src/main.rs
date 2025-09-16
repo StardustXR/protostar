@@ -1,8 +1,7 @@
 mod hex;
 
-use asteroids::{
-	ClientState, CustomElement, Element, Migrate, Reify, Transformable, client,
-	elements::{Button, Grabbable, Model, ModelPart, PointerMode, Spatial},
+use stardust_xr_asteroids::{
+	client, elements::{Button, Grabbable, Model, ModelPart, PointerMode, Spatial}, ClientState, CustomElement, Element, Identifiable as _, Migrate, Reify, Transformable
 };
 use glam::Quat;
 use hex::Hex;

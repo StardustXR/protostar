@@ -1,4 +1,4 @@
-use asteroids::{CustomElement, ValidState};
+use stardust_xr_asteroids::{CustomElement, ValidState};
 use protostar::application::Application;
 use stardust_xr_fusion::{
 	node::{NodeError, NodeType},
@@ -23,8 +23,8 @@ impl<State: ValidState> CustomElement<State> for AppLauncher<State> {
 
 	fn create_inner(
 		&self,
-		_asteroids_context: &asteroids::Context,
-		info: asteroids::CreateInnerInfo,
+		_asteroids_context: &stardust_xr_asteroids::Context,
+		info: stardust_xr_asteroids::CreateInnerInfo,
 		_resource: &mut Self::Resource,
 	) -> Result<Self::Inner, Self::Error> {
 		let spatial = Spatial::create(

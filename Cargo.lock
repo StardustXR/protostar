@@ -139,22 +139,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "app_grid"
-version = "0.1.0"
-dependencies = [
- "clap",
- "color-eyre",
- "glam 0.24.2",
- "manifest-dir-macros",
- "protostar",
- "stardust-xr-fusion",
- "stardust-xr-molecules",
- "tokio",
- "tracing-subscriber",
- "tween",
-]
-
-[[package]]
 name = "arrayref"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -180,35 +164,6 @@ dependencies = [
  "serde_repr",
  "tokio",
  "url",
- "zbus",
-]
-
-[[package]]
-name = "asteroids"
-version = "2.0.0"
-source = "git+https://github.com/StardustXR/asteroids.git?branch=dev#767d322b04b08fb5317b7c81cbb7730f1c87e85a"
-dependencies = [
- "ashpd",
- "bumpalo",
- "derive-where",
- "derive_setters",
- "dioxus-devtools",
- "directories 6.0.0",
- "futures-util",
- "glam 0.30.3",
- "inotify",
- "lazy_static",
- "map-range",
- "mint",
- "ouroboros",
- "ron",
- "rustc-hash 2.1.1",
- "serde",
- "stardust-xr-fusion",
- "stardust-xr-molecules",
- "tokio",
- "tracing",
- "tracy-client",
  "zbus",
 ]
 
@@ -1451,7 +1406,6 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 name = "hexagon_launcher"
 version = "0.1.0"
 dependencies = [
- "asteroids",
  "clap",
  "color-eyre",
  "glam 0.25.0",
@@ -1461,6 +1415,7 @@ dependencies = [
  "rayon",
  "serde",
  "single",
+ "stardust-xr-asteroids",
  "stardust-xr-fusion",
  "tokio",
  "tracing",
@@ -3017,7 +2972,6 @@ dependencies = [
 name = "single"
 version = "0.1.0"
 dependencies = [
- "asteroids",
  "clap",
  "color-eyre",
  "glam 0.24.2",
@@ -3025,6 +2979,7 @@ dependencies = [
  "mint",
  "protostar",
  "serde",
+ "stardust-xr-asteroids",
  "stardust-xr-fusion",
  "stardust-xr-molecules",
  "tokio",
@@ -3043,7 +2998,6 @@ checksum = "38b58827f4464d87d377d175e90bf58eb00fd8716ff0a62f80356b5e61555d0d"
 name = "sirius"
 version = "0.1.0"
 dependencies = [
- "asteroids",
  "clap",
  "color-eyre",
  "glam 0.25.0",
@@ -3052,6 +3006,7 @@ dependencies = [
  "protostar",
  "serde",
  "single",
+ "stardust-xr-asteroids",
  "stardust-xr-fusion",
  "tokio",
  "tracing",
@@ -3104,7 +3059,7 @@ checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 [[package]]
 name = "stardust-xr"
 version = "0.45.0"
-source = "git+https://github.com/StardustXR/core.git?branch=dev#32fd11dc199406e9a38194d937567b9e6b88122e"
+source = "git+https://github.com/StardustXR/core.git?branch=dev#8aa50e038c5eb1610813b675e749ea80207d1206"
 dependencies = [
  "cluFlock",
  "color-eyre",
@@ -3122,9 +3077,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "stardust-xr-asteroids"
+version = "2.0.0"
+source = "git+https://github.com/StardustXR/asteroids.git?branch=dev#6e94d9be18b7b38775d02dd49508d215d758500c"
+dependencies = [
+ "ashpd",
+ "bumpalo",
+ "derive-where",
+ "derive_setters",
+ "dioxus-devtools",
+ "directories 6.0.0",
+ "futures-util",
+ "glam 0.30.3",
+ "inotify",
+ "lazy_static",
+ "map-range",
+ "mint",
+ "ouroboros",
+ "ron",
+ "rustc-hash 2.1.1",
+ "serde",
+ "stardust-xr-fusion",
+ "stardust-xr-molecules",
+ "tokio",
+ "tracing",
+ "tracy-client",
+ "zbus",
+]
+
+[[package]]
 name = "stardust-xr-fusion"
 version = "0.45.0"
-source = "git+https://github.com/StardustXR/core.git?branch=dev#32fd11dc199406e9a38194d937567b9e6b88122e"
+source = "git+https://github.com/StardustXR/core.git?branch=dev#8aa50e038c5eb1610813b675e749ea80207d1206"
 dependencies = [
  "color-eyre",
  "dashmap",
@@ -3145,7 +3129,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-fusion-codegen"
 version = "0.1.0"
-source = "git+https://github.com/StardustXR/core.git?branch=dev#32fd11dc199406e9a38194d937567b9e6b88122e"
+source = "git+https://github.com/StardustXR/core.git?branch=dev#8aa50e038c5eb1610813b675e749ea80207d1206"
 dependencies = [
  "convert_case",
  "proc-macro2",
@@ -3175,7 +3159,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-schemas"
 version = "1.5.3"
-source = "git+https://github.com/StardustXR/core.git?branch=dev#32fd11dc199406e9a38194d937567b9e6b88122e"
+source = "git+https://github.com/StardustXR/core.git?branch=dev#8aa50e038c5eb1610813b675e749ea80207d1206"
 dependencies = [
  "flatbuffers",
  "flexbuffers",

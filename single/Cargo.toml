@@ -18,4 +18,4 @@ tokio = { workspace = true }
 serde = { workspace = true }
 stardust-xr-fusion = { workspace = true }
 stardust-xr-molecules = { workspace = true }
-asteroids = { workspace = true }
+stardust-xr-asteroids = { workspace = true }
