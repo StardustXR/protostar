@@ -1,7 +1,8 @@
-use stardust_xr_asteroids::{CustomElement, ValidState};
 use protostar::application::Application;
+use stardust_xr_asteroids::{Context, CustomElement, ValidState};
 use stardust_xr_fusion::{
 	node::{NodeError, NodeType},
+	root::FrameInfo,
 	spatial::{Spatial, SpatialAspect, SpatialRef, Transform},
 };
 use std::fmt::Debug;
@@ -40,7 +41,8 @@ impl<State: ValidState> CustomElement<State> for AppLauncher<State> {
 
 	fn frame(
 		&self,
-		_info: &stardust_xr_fusion::root::FrameInfo,
+		_context: &Context,
+		_info: &FrameInfo,
 		state: &mut State,
 		inner: &mut Self::Inner,
 	) {

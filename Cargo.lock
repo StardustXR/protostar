@@ -3079,7 +3079,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-asteroids"
 version = "2.0.0"
-source = "git+https://github.com/StardustXR/asteroids.git?branch=dev#6e94d9be18b7b38775d02dd49508d215d758500c"
+source = "git+https://github.com/StardustXR/asteroids.git?branch=dev#565ca60902661011632d67f4b4ff70ab3dcea299"
 dependencies = [
  "ashpd",
  "bumpalo",
@@ -3090,7 +3090,6 @@ dependencies = [
  "futures-util",
  "glam 0.30.3",
  "inotify",
- "lazy_static",
  "map-range",
  "mint",
  "ouroboros",

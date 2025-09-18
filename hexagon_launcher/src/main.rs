@@ -1,8 +1,5 @@
 mod hex;
 
-use stardust_xr_asteroids::{
-	client, elements::{Button, Grabbable, Model, ModelPart, PointerMode, Spatial}, ClientState, CustomElement, Element, Identifiable as _, Migrate, Reify, Transformable
-};
 use glam::Quat;
 use hex::Hex;
 use mint::{Quaternion, Vector3};
@@ -10,6 +7,10 @@ use protostar::xdg::{DesktopFile, get_desktop_files};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use single::{APP_SIZE, App, BTN_COLOR, BTN_SELECTED_COLOR, MODEL_SCALE};
+use stardust_xr_asteroids::{
+	ClientState, CustomElement, Element, Migrate, Reify, Transformable, client,
+	elements::{Button, Grabbable, Model, ModelPart, PointerMode, Spatial},
+};
 use stardust_xr_fusion::{
 	drawable::MaterialParameter,
 	fields::{CylinderShape, Shape},
@@ -136,7 +137,6 @@ impl Reify for HexagonLauncher {
 						Spatial::default()
 							.pos(Hex::spiral(i + 1).get_coords())
 							.build()
-							.identify(&app.app.name())
 							.child(app.reify_substate(move |state: &mut HexagonLauncher| {
 								state.apps.get_mut(i)
 							}))
