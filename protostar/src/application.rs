@@ -46,7 +46,7 @@ impl Application {
 	}
 
 	pub fn launch<T: SpatialRefAspect + Clone>(&self, launch_space: &T) -> NodeResult<()> {
-		let client = launch_space.node().client()?;
+		let client = launch_space.client().clone();
 		let launch_space = launch_space.clone();
 
 		let executable = self

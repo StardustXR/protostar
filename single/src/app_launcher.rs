@@ -29,7 +29,7 @@ impl<State: ValidState> CustomElement<State> for AppLauncher<State> {
 		_resource: &mut Self::Resource,
 	) -> Result<Self::Inner, Self::Error> {
 		let spatial = Spatial::create(
-			info.parent_space.client()?.get_root(),
+			info.parent_space.client().get_root(),
 			Transform::identity(),
 			false,
 		)?;

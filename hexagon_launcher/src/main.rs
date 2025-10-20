@@ -104,7 +104,7 @@ impl Reify for HexagonLauncher {
 		)
 		.field_transform(Transform::from_rotation(Quat::from_rotation_x(FRAC_PI_2)))
 		.pointer_mode(PointerMode::Align)
-		.zoneable(false)
+		.reparentable(true)
 		.build()
 		.child(
 			Button::new(|state: &mut HexagonLauncher| {

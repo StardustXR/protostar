@@ -132,6 +132,7 @@ impl Reify for App {
 			.field_transform(Transform::from_rotation(Quat::from_rotation_x(FRAC_PI_2)))
 			.pointer_mode(PointerMode::Align)
 			.max_distance(0.05)
+			.reparentable(false)
 			.build()
 			.child(self.create_model())
 			.children(self.launched.load(Ordering::Relaxed).then(|| {

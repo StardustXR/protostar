@@ -1,12 +1,13 @@
-use stardust_xr_asteroids::{
-	client, elements::{Button, Grabbable, Model, ModelPart, PointerMode, Spatial}, ClientState, CustomElement, Element, Identifiable as _, Migrate, Reify, Transformable
-};
 use clap::Parser;
 use glam::Quat;
 use mint::{Quaternion, Vector3};
 use protostar::xdg::DesktopFile;
 use serde::{Deserialize, Serialize};
 use single::{App, BTN_COLOR, BTN_SELECTED_COLOR};
+use stardust_xr_asteroids::{
+	ClientState, CustomElement, Element, Migrate, Reify, Transformable, client,
+	elements::{Button, Grabbable, Model, ModelPart, PointerMode, Spatial},
+};
 use stardust_xr_fusion::{
 	drawable::MaterialParameter, fields::Shape, project_local_resources, spatial::Transform,
 };
@@ -105,7 +106,7 @@ impl Reify for Sirius {
 			},
 		)
 		.pointer_mode(PointerMode::Align)
-		.zoneable(false)
+		.reparentable(true)
 		.build()
 		.child(
 			Button::new(|state: &mut Sirius| {
@@ -138,15 +139,9 @@ impl Reify for Sirius {
 							false => starpos = (starpos - 0.1) / 2.0,
 						}
 
-						Spatial::default()
-							.pos([starpos, 0.1, 0.0])
-							.build()
-							.identify(&app.app.name())
-							.child(
-								app.reify_substate(move |state: &mut Sirius| {
-									state.apps.get_mut(pos)
-								}),
-							)
+						Spatial::default().pos([starpos, 0.1, 0.0]).build().child(
+							app.reify_substate(move |state: &mut Sirius| state.apps.get_mut(pos)),
+						)
 					})
 				})
 				.into_iter()
