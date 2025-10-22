@@ -28,10 +28,10 @@ struct ImageCache {
 
 impl ImageCache {
 	fn new(path: PathBuf) -> Self {
-		if let Ok(text) = std::fs::read_to_string(&path) {
-			if let Ok(cache) = toml::de::from_str(&text) {
-				return cache;
-			}
+		if let Ok(text) = std::fs::read_to_string(&path)
+			&& let Ok(cache) = toml::de::from_str(&text)
+		{
+			return cache;
 		}
 
 		ImageCache {
@@ -231,10 +231,10 @@ impl DesktopFile {
 		// Get the name of the icon from the DesktopFile struct
 		let icon_name = self.icon.as_ref()?;
 		let test_icon_path = self.path.join(Path::new(icon_name));
-		if test_icon_path.exists() {
-			if let Some(icon) = Icon::from_path(test_icon_path, preferred_px_size) {
-				return Some(icon);
-			}
+		if test_icon_path.exists()
+			&& let Some(icon) = Icon::from_path(test_icon_path, preferred_px_size)
+		{
+			return Some(icon);
 		}
 
 		if let Some(cache_icon_path) = IMAGE_CACHE
@@ -242,14 +242,11 @@ impl DesktopFile {
 			.unwrap()
 			.map
 			.get(&(icon_name.clone(), preferred_px_size))
+			&& cache_icon_path.exists()
+			&& let Some(icon) = Icon::from_path(cache_icon_path.to_owned(), preferred_px_size)
 		{
-			if cache_icon_path.exists() {
-				if let Some(icon) = Icon::from_path(cache_icon_path.to_owned(), preferred_px_size) {
-					return Some(icon);
-				}
-			}
+			return Some(icon);
 		}
-
 		let preferred_theme = match linicon_theme::get_icon_theme() {
 			Some(t) => t,
 			None => "hicolor".to_owned(),
@@ -259,11 +256,9 @@ impl DesktopFile {
 			.with_size(preferred_px_size)
 			.with_theme(preferred_theme.as_str())
 			.with_greed()
-			.find()
+			.find() && let Some(icon) = Icon::from_path(icon_path, preferred_px_size)
 		{
-			if let Some(icon) = Icon::from_path(icon_path, preferred_px_size) {
-				return Some(icon);
-			}
+			return Some(icon);
 		}
 
 		for icon_size in ICON_SIZES {
@@ -271,11 +266,9 @@ impl DesktopFile {
 				.with_size(icon_size)
 				.with_theme(preferred_theme.as_str())
 				.with_greed()
-				.find()
+				.find() && let Some(icon) = Icon::from_path(icon_path, preferred_px_size)
 			{
-				if let Some(icon) = Icon::from_path(icon_path, preferred_px_size) {
-					return Some(icon);
-				}
+				return Some(icon);
 			}
 		}
 		None

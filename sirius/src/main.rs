@@ -129,19 +129,24 @@ impl Reify for Sirius {
 				))
 				.build(),
 		)
-		.children(
+		.stable_children(
 			self.visible
 				.then(|| {
-					self.apps.iter().enumerate().map(|(pos, app)| {
+					self.apps.iter().enumerate().filter_map(|(pos, app)| {
 						let mut starpos = (pos as f32 + 1.0) / 10.0;
 						match starpos % 0.2 == 0.0 {
 							true => starpos = -starpos / 2.0,
 							false => starpos = (starpos - 0.1) / 2.0,
 						}
 
-						Spatial::default().pos([starpos, 0.1, 0.0]).build().child(
-							app.reify_substate(move |state: &mut Sirius| state.apps.get_mut(pos)),
-						)
+						Some((
+							app.app.name()?.to_string(),
+							Spatial::default().pos([starpos, 0.1, 0.0]).build().child(
+								app.reify_substate(move |state: &mut Sirius| {
+									state.apps.get_mut(pos)
+								}),
+							),
+						))
 					})
 				})
 				.into_iter()
