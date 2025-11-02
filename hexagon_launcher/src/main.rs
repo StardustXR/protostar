@@ -170,13 +170,12 @@ impl ClientState for HexagonLauncher {
 			.apps
 			.iter()
 			.map(|a| Snapshot {
--					name: a.app.name().unwrap_or_default(),
-+					name: a.app.name().unwrap_or_default().to_string(),
-                     cached_texture: a.cached_texture.get().cloned(),
-                     cached_gltf: a.cached_gltf.get().cloned(),
-                 })
-                 .collect();
-     }
+                name: a.app.name().unwrap_or_default().to_string(),
+                cached_texture: a.cached_texture.get().cloned(),
+                cached_gltf: a.cached_gltf.get().cloned(),
+            })
+            .collect();
+    }
  }
  impl Reify for HexagonLauncher {
      #[tracing::instrument(skip_all)]
@@ -278,50 +277,52 @@ impl ClientState for HexagonLauncher {
                              let pos = self.positions[i];
                              // build spatial + cheap model from snapshot (no per-app state access)
                              let mut spatial = Spatial::default().pos(pos).build();
-+
-+                            // attach model from snapshot (gltf preferred, else namespaced + texture)
-+                            if let Some(gltf) = snap.cached_gltf {
-+                                if let Ok(builder) = Model::direct(gltf.to_string_lossy().to_string()) {
-+                                    spatial = spatial.child(builder.transform(Transform::from_rotation_scale(
-+                                        Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
-+                                        [MODEL_SCALE; 3],
-+                                    )).build());
-+                                }
-+                            } else {
-+                                let mut mb = Model::namespaced("protostar", "hexagon/hexagon")
-+                                    .transform(Transform::from_rotation_scale(
-+                                        Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
-+                                        [MODEL_SCALE; 3],
-+                                    ))
-+                                    .part(ModelPart::new("Hex").mat_param(
-+                                        "color",
-+                                        MaterialParameter::Color(if self.open {
-+                                            BTN_SELECTED_COLOR
-+                                        } else {
-+                                            BTN_COLOR
-+                                        }),
-+                                    ));
-+                                if let Some(tex) = snap.cached_texture {
-+                                    mb = mb.part(ModelPart::new("Icon").mat_param(
-+                                        "diffuse",
-+                                        MaterialParameter::Texture(tex),
-+                                    ));
-+                                }
-+                                spatial = spatial.child(mb.build());
-+                            }
-+
-+                            // attach a Button that mutates real state when used (captures index)
-+                            spatial.child(
-+                                Button::new(move |state: &mut HexagonLauncher| {
-+                                    // example: toggle open / or launch the app via state.apps[i]
-+                                    // keep mutation here, but we avoid doing this per-frame.
-+                                    // if you need to launch: state.apps[i].launch(...);
-+                                    tracing::debug!(index = i, "app button pressed");
-+                                })
-+                                .pos([0.0, 0.0, 0.0])
-+                                .size([0.01; 2])
-+                                .build(),
-+                            )
+
+                             // attach model from snapshot (gltf preferred, else namespaced + texture)
+                             if let Some(gltf) = snap.cached_gltf {
+                                 if let Ok(builder) = Model::direct(gltf.to_string_lossy().to_string()) {
+                                     spatial = spatial.child(
+                                         builder
+                                             .transform(Transform::from_rotation_scale(
+                                                 Quat::from_rotation_x(PI / 2.0)
+                                                     * Quat::from_rotation_y(PI),
+                                                 [MODEL_SCALE; 3],
+                                             ))
+                                             .build(),
+                                     );
+                                 }
+                             } else {
+                                 let mut mb = Model::namespaced("protostar", "hexagon/hexagon")
+                                     .transform(Transform::from_rotation_scale(
+                                         Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
+                                         [MODEL_SCALE; 3],
+                                     ))
+                                     .part(ModelPart::new("Hex").mat_param(
+                                         "color",
+                                         MaterialParameter::Color(if self.open {
+                                             BTN_SELECTED_COLOR
+                                         } else {
+                                             BTN_COLOR
+                                         }),
+                                     ));
+                                 if let Some(tex) = snap.cached_texture {
+                                     mb = mb.part(ModelPart::new("Icon").mat_param(
+                                         "diffuse",
+                                         MaterialParameter::Texture(tex),
+                                     ));
+                                 }
+                                 spatial = spatial.child(mb.build());
+                             }
+
+                             // attach a Button that mutates real state when used (captures index)
+                             spatial.child(
+                                 Button::new(move |state: &mut HexagonLauncher| {
+                                     tracing::debug!(index = i, "app button pressed");
+                                 })
+                                 .pos([0.0, 0.0, 0.0])
+                                 .size([0.01; 2])
+                                 .build(),
+                             )
                          })
                  })
                  .into_iter()
