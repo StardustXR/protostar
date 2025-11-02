@@ -18,11 +18,25 @@ use stardust_xr_fusion::{
 	spatial::Transform,
 };
 use std::f32::consts::{FRAC_PI_2, PI};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use tokio::time::Duration;
+
+static REIFY_COUNT: AtomicUsize = AtomicUsize::new(0);
+
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
 	color_eyre::install().unwrap();
+
+	// spawn a background logger that prints reify calls per second
+	tokio::spawn(async {
+		loop {
+			tokio::time::sleep(Duration::from_secs(1)).await;
+			let v = REIFY_COUNT.swap(0, Ordering::Relaxed);
+			tracing::info!(reify_per_sec = v, "hexagon reify rate");
+		}
+	});
 
 	let registry = tracing_subscriber::registry();
 	#[cfg(feature = "tracy")]
@@ -89,6 +103,9 @@ impl ClientState for HexagonLauncher {
 impl Reify for HexagonLauncher {
 	#[tracing::instrument(skip_all)]
 	fn reify(&self) -> impl Element<Self> {
+		// increment counter so we can observe how often reify is called
+		REIFY_COUNT.fetch_add(1, Ordering::Relaxed);
+
 		// Build UI based on current state
 		Grabbable::new(
 			Shape::Cylinder(CylinderShape {
