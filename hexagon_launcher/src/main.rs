@@ -19,9 +19,12 @@ use stardust_xr_fusion::{
 };
 use std::f32::consts::{FRAC_PI_2, PI};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::AtomicU64;
 use tokio::time::Duration;
 
 static REIFY_COUNT: AtomicUsize = AtomicUsize::new(0);
+static REIFY_TOTAL_NS: AtomicU64 = AtomicU64::new(0);
+static APP_REIFY_COUNT: AtomicUsize = AtomicUsize::new(0);
 
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -34,7 +37,15 @@ async fn main() {
 		loop {
 			tokio::time::sleep(Duration::from_secs(1)).await;
 			let v = REIFY_COUNT.swap(0, Ordering::Relaxed);
-			tracing::info!(reify_per_sec = v, "hexagon reify rate");
+			let total_ns = REIFY_TOTAL_NS.swap(0, Ordering::Relaxed);
+			let app_hits = APP_REIFY_COUNT.swap(0, Ordering::Relaxed);
+			let avg_ns = if v > 0 { total_ns / (v as u64) } else { 0 };
+			tracing::info!(
+				reify_per_sec = v,
+				avg_reify_ms = (avg_ns as f64) / 1_000_000.0,
+				app_reify_hits = app_hits,
+				"hexagon reify stats"
+			);
 		}
 	});
 
@@ -103,64 +114,82 @@ impl ClientState for HexagonLauncher {
 impl Reify for HexagonLauncher {
 	#[tracing::instrument(skip_all)]
 	fn reify(&self) -> impl Element<Self> {
-		// increment counter so we can observe how often reify is called
-		REIFY_COUNT.fetch_add(1, Ordering::Relaxed);
+		// measure reify latency and count
+		let start = std::time::Instant::now();
 
 		// Build UI based on current state
-		Grabbable::new(
-			Shape::Cylinder(CylinderShape {
-				radius: APP_SIZE / 2.0,
-				length: 0.01,
-			}),
-			self.pos,
-			self.rot,
-			|state: &mut Self, pos, rot| {
-				state.pos = pos;
-				state.rot = rot;
-			},
-		)
-		.field_transform(Transform::from_rotation(Quat::from_rotation_x(FRAC_PI_2)))
-		.pointer_mode(PointerMode::Align)
-		.reparentable(true)
-		.build()
-		.child(
-			Button::new(|state: &mut HexagonLauncher| {
-				state.open = !state.open;
-			})
-			.pos([0.0, 0.0, 0.005])
-			.size([APP_SIZE / 2.0; 2])
-			.build(),
-		)
-		.child(
-			Model::namespaced("protostar", "hexagon/hexagon")
-				.transform(Transform::from_rotation_scale(
-					Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
-					[MODEL_SCALE; 3],
-				))
-				.part(ModelPart::new("Hex").mat_param(
-					"color",
-					MaterialParameter::Color(if self.open {
-						BTN_SELECTED_COLOR
-					} else {
-						BTN_COLOR
-					}),
-				))
-				.build(),
-		)
-		.children(
-			self.open
-				.then(|| {
-					self.apps.iter().enumerate().map(|(i, app)| {
-						Spatial::default()
-							.pos(Hex::spiral(i + 1).get_coords())
-							.build()
-							.child(app.reify_substate(move |state: &mut HexagonLauncher| {
-								state.apps.get_mut(i)
-							}))
-					})
-				})
-				.into_iter()
-				.flatten(),
-		)
+		let elem = Grabbable::new(
+             Shape::Cylinder(CylinderShape {
+                 radius: APP_SIZE / 2.0,
+                 length: 0.01,
+             }),
+             self.pos,
+             self.rot,
+             |state: &mut Self, pos, rot| {
+                 // only update if changed enough to avoid constant reify
+                 let dx = (state.pos.x - pos.x).abs();
+                 let dy = (state.pos.y - pos.y).abs();
+                 let dz = (state.pos.z - pos.z).abs();
+                 if dx > 0.0005 || dy > 0.0005 || dz > 0.0005 {
+                     tracing::trace!(?pos, "updating grab position");
+                     state.pos = pos;
+                 }
+                 // rotation updates can also be debounced if noisy
+                 state.rot = rot;
+             },
+         )
+         .field_transform(Transform::from_rotation(Quat::from_rotation_x(FRAC_PI_2)))
+         .pointer_mode(PointerMode::Align)
+         .reparentable(true)
+         .build()
+         .child(
+             Button::new(|state: &mut HexagonLauncher| {
+                 state.open = !state.open;
+                 tracing::debug!(open = state.open, "toggled hexagon open");
+             })
+             .pos([0.0, 0.0, 0.005])
+             .size([APP_SIZE / 2.0; 2])
+             .build(),
+         )
+         .child(
+             Model::namespaced("protostar", "hexagon/hexagon")
+                 .transform(Transform::from_rotation_scale(
+                     Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
+                     [MODEL_SCALE; 3],
+                 ))
+                 .part(ModelPart::new("Hex").mat_param(
+                     "color",
+                     MaterialParameter::Color(if self.open {
+                         BTN_SELECTED_COLOR
+                     } else {
+                         BTN_COLOR
+                     }),
+                 ))
+                 .build(),
+         )
+         .children(
+             self.open
+                 .then(|| {
+                     self.apps.iter().enumerate().map(|(i, app)| {
+                         Spatial::default()
+                             .pos(Hex::spiral(i + 1).get_coords())
+                             .build()
+                             .child(app.reify_substate(move |state: &mut HexagonLauncher| {
+                                 // log & count access to per-app substate
+                                 APP_REIFY_COUNT.fetch_add(1, Ordering::Relaxed);
+                                 tracing::trace!(index = i, "accessing app substate");
+                                 state.apps.get_mut(i)
+                             }))
+                     })
+                 })
+                 .into_iter()
+                 .flatten(),
+         )
+		;
+
+         let elapsed = start.elapsed().as_nanos() as u64;
+         REIFY_TOTAL_NS.fetch_add(elapsed, Ordering::Relaxed);
+         REIFY_COUNT.fetch_add(1, Ordering::Relaxed);
+		elem
 	}
 }
