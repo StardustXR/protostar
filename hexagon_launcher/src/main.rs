@@ -8,8 +8,8 @@ use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use single::{APP_SIZE, App, BTN_COLOR, BTN_SELECTED_COLOR, MODEL_SCALE};
 use stardust_xr_asteroids::{
-	ClientState, CustomElement, Element, Migrate, Reify, Transformable, client,
-	elements::{Button, Grabbable, Model, ModelPart},
+    ClientState, CustomElement, Element, Migrate, Reify, Transformable, client,
+    elements::{Button, Grabbable, Model, ModelPart, PointerMode, Spatial},
 };
 use stardust_xr_fusion::{
 	drawable::MaterialParameter,
@@ -17,6 +17,8 @@ use stardust_xr_fusion::{
 	project_local_resources,
 	spatial::Transform,
 };
+use stardust_xr_fusion::values::ResourceID;
+use std::path::PathBuf;
 use std::f32::consts::{FRAC_PI_2, PI};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::atomic::AtomicU64;
@@ -70,16 +72,26 @@ async fn main() {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct HexagonLauncher {
-	/// if the hexagon launcher is expanded
-	open: bool,
-	pos: Vector3<f32>,
-	rot: Quaternion<f32>,
+    /// if the hexagon launcher is expanded
+    open: bool,
+    pos: Vector3<f32>,
+    rot: Quaternion<f32>,
+    #[serde(skip)]
+    /// position in the vector is mapped to hex coordinates
+    apps: Vec<App>,
+    #[serde(skip)]
+    /// cached world coordinates for each app hex
+    positions: Vec<[f32; 3]>,
 	#[serde(skip)]
-	/// position in the vector is mapped to hex coordinates
-	apps: Vec<App>,
-	#[serde(skip)]
-	/// cached world coordinates for each app hex
-	positions: Vec<[f32; 3]>,
+	/// lightweight immutable snapshots for fast per-frame reify
+	snapshots: Vec<Snapshot>,
+}
+
+#[derive(Clone)]
+struct Snapshot {
+	name: String,
+	cached_texture: Option<ResourceID>,
+	cached_gltf: Option<PathBuf>,
 }
 
 impl Default for HexagonLauncher {
@@ -90,6 +102,7 @@ impl Default for HexagonLauncher {
 			rot: Quat::IDENTITY.into(),
 			apps: Vec::new(),
 			positions: Vec::new(),
+			snapshots: Vec::new(),
 		}
 	}
 }
@@ -133,23 +146,36 @@ impl ClientState for HexagonLauncher {
 		self.apps.par_iter().for_each(|app| {
 			// GLTF path warm: call Model::direct once (parser/cache warm-up)
 			if let Some(gltf_path) = app.cached_gltf.get() {
-				let _ = Model::direct(gltf_path.to_string_lossy().to_string());
-			} else if let Some(tex) = app.cached_texture.get() {
-				// Raster icon path warm: build the lightweight namespaced model
-				// with the cached texture so material/texture creation happens now.
-				let _ = Model::namespaced("protostar", "hexagon/hexagon")
-					.part(ModelPart::new("Hex").mat_param(
-						"color",
-						MaterialParameter::Color(crate::BTN_COLOR),
-					))
-					.part(ModelPart::new("Icon").mat_param(
-						"diffuse",
-						MaterialParameter::Texture(tex.clone()),
-					))
-					.build();
-			}
-		});
-	}
+				if let Ok(builder) = Model::direct(gltf_path.to_string_lossy().to_string()) {
+					let _ = CustomElement::<HexagonLauncher>::build(builder);
+                }
+             } else if let Some(tex) = app.cached_texture.get() {
+                 // Raster icon path warm: build the lightweight namespaced model
+                 // with the cached texture so material/texture creation happens now.
+                let builder = Model::namespaced("protostar", "hexagon/hexagon")
+                    .part(ModelPart::new("Hex").mat_param(
+                        "color",
+                        MaterialParameter::Color(crate::BTN_COLOR),
+                    ))
+                    .part(ModelPart::new("Icon").mat_param(
+                        "diffuse",
+                        MaterialParameter::Texture(tex.clone()),
+                    ));
+                let _ = CustomElement::<HexagonLauncher>::build(builder);
+             }
+         });
+
+		// build immutable lightweight snapshots used during reify
+		self.snapshots = self
+			.apps
+			.iter()
+			.map(|a| Snapshot {
+				name: a.app.name().unwrap_or_default(),
+				cached_texture: a.cached_texture.get().cloned(),
+				cached_gltf: a.cached_gltf.get().cloned(),
+			})
+			.collect();
+    }
 }
 impl Reify for HexagonLauncher {
 	#[tracing::instrument(skip_all)]
@@ -245,16 +271,56 @@ impl Reify for HexagonLauncher {
                          .iter()
                          .enumerate()
                          .take(take_n)
-                         .map(|(i, app)| {
-                             Spatial::default()
-                                 .pos(self.positions[i])
-                                 .build()
-                                 .child(app.reify_substate(move |state: &mut HexagonLauncher| {
-                                     // log & count access to per-app substate
-                                     APP_REIFY_COUNT.fetch_add(1, Ordering::Relaxed);
-                                     tracing::trace!(index = i, "accessing app substate");
-                                     state.apps.get_mut(i)
-                                 }))
+                         .map(|(i, _app)| {
+                             // use snapshot instead of reify_substate (cheap, immutable)
+                             let snap = self.snapshots[i].clone();
+                             let pos = self.positions[i];
+                             // build spatial + cheap model from snapshot (no per-app state access)
+                             let mut spatial = Spatial::default().pos(pos).build();
++
++                            // attach model from snapshot (gltf preferred, else namespaced + texture)
++                            if let Some(gltf) = snap.cached_gltf {
++                                if let Ok(builder) = Model::direct(gltf.to_string_lossy().to_string()) {
++                                    spatial = spatial.child(builder.transform(Transform::from_rotation_scale(
++                                        Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
++                                        [MODEL_SCALE; 3],
++                                    )).build());
++                                }
++                            } else {
++                                let mut mb = Model::namespaced("protostar", "hexagon/hexagon")
++                                    .transform(Transform::from_rotation_scale(
++                                        Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
++                                        [MODEL_SCALE; 3],
++                                    ))
++                                    .part(ModelPart::new("Hex").mat_param(
++                                        "color",
++                                        MaterialParameter::Color(if self.open {
++                                            BTN_SELECTED_COLOR
++                                        } else {
++                                            BTN_COLOR
++                                        }),
++                                    ));
++                                if let Some(tex) = snap.cached_texture {
++                                    mb = mb.part(ModelPart::new("Icon").mat_param(
++                                        "diffuse",
++                                        MaterialParameter::Texture(tex),
++                                    ));
++                                }
++                                spatial = spatial.child(mb.build());
++                            }
++
++                            // attach a Button that mutates real state when used (captures index)
++                            spatial.child(
++                                Button::new(move |state: &mut HexagonLauncher| {
++                                    // example: toggle open / or launch the app via state.apps[i]
++                                    // keep mutation here, but we avoid doing this per-frame.
++                                    // if you need to launch: state.apps[i].launch(...);
++                                    tracing::debug!(index = i, "app button pressed");
++                                })
++                                .pos([0.0, 0.0, 0.0])
++                                .size([0.01; 2])
++                                .build(),
++                            )
                          })
                  })
                  .into_iter()
