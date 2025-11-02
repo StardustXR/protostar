@@ -6,7 +6,7 @@ use mint::{Quaternion, Vector3};
 use protostar::xdg::{DesktopFile, get_desktop_files};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
-use single::{APP_SIZE, App, BTN_COLOR, BTN_SELECTED_COLOR, MODEL_SCALE};
+use single::{APP_SIZE, App, BTN_COLOR, BTN_SELECTED_COLOR, MODEL_SCALE, DEFAULT_HEX_COLOR};
 use stardust_xr_asteroids::{
     ClientState, CustomElement, Element, Migrate, Reify, Transformable, client,
     elements::{Button, Grabbable, Model, ModelPart, PointerMode, Spatial},
@@ -225,11 +225,7 @@ impl ClientState for HexagonLauncher {
                  ))
                  .part(ModelPart::new("Hex").mat_param(
                      "color",
-                     MaterialParameter::Color(if self.open {
-                         BTN_SELECTED_COLOR
-                     } else {
-                         BTN_COLOR
-                     }),
+                     MaterialParameter::Color(DEFAULT_HEX_COLOR),
                  ))
                  .build(),
          )
@@ -275,47 +271,74 @@ impl ClientState for HexagonLauncher {
                              // use snapshot instead of reify_substate (cheap, immutable)
                              let snap = self.snapshots[i].clone();
                              let pos = self.positions[i];
-                             // build spatial + cheap model from snapshot (no per-app state access)
-                             let mut spatial = Spatial::default().pos(pos).build();
 
-                             // attach model from snapshot (gltf preferred, else namespaced + texture)
-                             if let Some(gltf) = snap.cached_gltf {
-                                 if let Ok(builder) = Model::direct(gltf.to_string_lossy().to_string()) {
-                                     spatial = spatial.child(
-                                         builder
+                             // start from a fresh spatial element
+                             let base = Spatial::default().pos(pos).build();
+
+                             // ensure both branches return the same element type by always
+                             // attaching a Model child (either GLTF builder or namespaced fallback)
+                             let with_model = match snap.cached_gltf {
+                                 Some(ref gltf) => {
+                                     if let Ok(builder) =
+                                         Model::direct(gltf.to_string_lossy().to_string())
+                                     {
+                                         base.child(
+                                             builder
+                                                 .transform(Transform::from_rotation_scale(
+                                                     Quat::from_rotation_x(PI / 2.0)
+                                                         * Quat::from_rotation_y(PI),
+                                                     [MODEL_SCALE; 3],
+                                                 ))
+                                                 .build(),
+                                         )
+                                     } else {
+                                         // fallback to namespaced model if direct GLTF build fails
+                                         let mut mb = Model::namespaced("protostar", "hexagon/hexagon")
                                              .transform(Transform::from_rotation_scale(
                                                  Quat::from_rotation_x(PI / 2.0)
                                                      * Quat::from_rotation_y(PI),
                                                  [MODEL_SCALE; 3],
                                              ))
-                                             .build(),
-                                     );
+                                             .part(ModelPart::new("Hex").mat_param(
+                                                 "color",
+                                                 MaterialParameter::Color(if self.open {
+                                                     BTN_SELECTED_COLOR
+                                                 } else {
+                                                     BTN_COLOR
+                                                 }),
+                                             ));
+                                         if let Some(tex) = snap.cached_texture {
+                                             mb = mb.part(ModelPart::new("Icon").mat_param(
+                                                 "diffuse",
+                                                 MaterialParameter::Texture(tex),
+                                             ));
+                                         }
+                                         base.child(mb.build())
+                                     }
                                  }
-                             } else {
-                                 let mut mb = Model::namespaced("protostar", "hexagon/hexagon")
-                                     .transform(Transform::from_rotation_scale(
-                                         Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
-                                         [MODEL_SCALE; 3],
-                                     ))
-                                     .part(ModelPart::new("Hex").mat_param(
-                                         "color",
-                                         MaterialParameter::Color(if self.open {
-                                             BTN_SELECTED_COLOR
-                                         } else {
-                                             BTN_COLOR
-                                         }),
-                                     ));
-                                 if let Some(tex) = snap.cached_texture {
-                                     mb = mb.part(ModelPart::new("Icon").mat_param(
-                                         "diffuse",
-                                         MaterialParameter::Texture(tex),
-                                     ));
+                                 None => {
+                                     let mut mb = Model::namespaced("protostar", "hexagon/hexagon")
+                                         .transform(Transform::from_rotation_scale(
+                                             Quat::from_rotation_x(PI / 2.0)
+                                                 * Quat::from_rotation_y(PI),
+                                             [MODEL_SCALE; 3],
+                                         ))
+                                         .part(ModelPart::new("Hex").mat_param(
+                                             "color",
+                                             MaterialParameter::Color(DEFAULT_HEX_COLOR),
+                                         ));
+                                     if let Some(tex) = snap.cached_texture {
+                                         mb = mb.part(ModelPart::new("Icon").mat_param(
+                                             "diffuse",
+                                             MaterialParameter::Texture(tex),
+                                         ));
+                                     }
+                                     base.child(mb.build())
                                  }
-                                 spatial = spatial.child(mb.build());
-                             }
+                             };
 
                              // attach a Button that mutates real state when used (captures index)
-                             spatial.child(
+                             with_model.child(
                                  Button::new(move |state: &mut HexagonLauncher| {
                                      tracing::debug!(index = i, "app button pressed");
                                  })
