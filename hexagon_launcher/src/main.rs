@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use single::{APP_SIZE, App, BTN_COLOR, BTN_SELECTED_COLOR, MODEL_SCALE};
 use stardust_xr_asteroids::{
 	ClientState, CustomElement, Element, Migrate, Reify, Transformable, client,
-	elements::{Button, Grabbable, Model, ModelPart, PointerMode, Spatial},
+	elements::{Button, Grabbable, Model, ModelPart},
 };
 use stardust_xr_fusion::{
 	drawable::MaterialParameter,
@@ -108,10 +108,6 @@ impl ClientState for HexagonLauncher {
 			.filter_map(|d| App::new(d).ok())
 			.collect();
 
-		self.apps.par_iter().for_each(|app| {
-			app.load_icon();
-		});
-
 		// Sort by name
 		self.apps
 			.sort_by_key(|app| app.app.name().unwrap_or_default().to_string());
@@ -120,6 +116,39 @@ impl ClientState for HexagonLauncher {
 		self.positions = (0..self.apps.len())
 			.map(|i| Hex::spiral(i + 1).get_coords())
 			.collect();
+
+		// Preload icons/resources off the reify path so create_model() is cheap later.
+		// Use rayon to parallelize filesystem/processing work.
+		self.apps
+			.par_iter()
+			.for_each(|app| {
+				// idempotent: App::load_icon uses OnceLock internally
+				app.load_icon();
+			});
+
+		// Warm / prebuild heavy Model resources in parallel so the renderer
+		// doesn't pay parsing/creation cost during reify.
+		//
+		// We do this after load_icon above so cached_gltf / cached_texture are populated.
+		self.apps.par_iter().for_each(|app| {
+			// GLTF path warm: call Model::direct once (parser/cache warm-up)
+			if let Some(gltf_path) = app.cached_gltf.get() {
+				let _ = Model::direct(gltf_path.to_string_lossy().to_string());
+			} else if let Some(tex) = app.cached_texture.get() {
+				// Raster icon path warm: build the lightweight namespaced model
+				// with the cached texture so material/texture creation happens now.
+				let _ = Model::namespaced("protostar", "hexagon/hexagon")
+					.part(ModelPart::new("Hex").mat_param(
+						"color",
+						MaterialParameter::Color(crate::BTN_COLOR),
+					))
+					.part(ModelPart::new("Icon").mat_param(
+						"diffuse",
+						MaterialParameter::Texture(tex.clone()),
+					))
+					.build();
+			}
+		});
 	}
 }
 impl Reify for HexagonLauncher {
