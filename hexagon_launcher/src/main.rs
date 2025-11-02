@@ -25,6 +25,8 @@ use tokio::time::Duration;
 static REIFY_COUNT: AtomicUsize = AtomicUsize::new(0);
 static REIFY_TOTAL_NS: AtomicU64 = AtomicU64::new(0);
 static APP_REIFY_COUNT: AtomicUsize = AtomicUsize::new(0);
+static VISIBLE_LIMIT: AtomicUsize = AtomicUsize::new(0);
+const VISIBLE_STEP: usize = 12;
 
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -75,6 +77,9 @@ pub struct HexagonLauncher {
 	#[serde(skip)]
 	/// position in the vector is mapped to hex coordinates
 	apps: Vec<App>,
+	#[serde(skip)]
+	/// cached world coordinates for each app hex
+	positions: Vec<[f32; 3]>,
 }
 
 impl Default for HexagonLauncher {
@@ -84,6 +89,7 @@ impl Default for HexagonLauncher {
 			pos: [0.0; 3].into(),
 			rot: Quat::IDENTITY.into(),
 			apps: Vec::new(),
+			positions: Vec::new(),
 		}
 	}
 }
@@ -109,6 +115,11 @@ impl ClientState for HexagonLauncher {
 		// Sort by name
 		self.apps
 			.sort_by_key(|app| app.app.name().unwrap_or_default().to_string());
+
+		// precompute coordinates for each app to avoid recomputing per-reify
+		self.positions = (0..self.apps.len())
+			.map(|i| Hex::spiral(i + 1).get_coords())
+			.collect();
 	}
 }
 impl Reify for HexagonLauncher {
@@ -167,24 +178,59 @@ impl Reify for HexagonLauncher {
                  ))
                  .build(),
          )
-         .children(
+         // limit how many children we build per-frame to avoid reify explosion;
+         // increase if performance is acceptable, or implement a pager/virtualization.
+         .children({
+             // read configured maximum (fall back to all apps)
+             let env_max = std::env::var("HEX_MAX_VISIBLE")
+                 .ok()
+                 .and_then(|s| s.parse::<usize>().ok());
+             let configured_max = env_max.unwrap_or(self.apps.len());
+             // desired target: if open -> min(configured_max, apps.len()) else 0
+             let desired = if self.open {
+                 std::cmp::min(configured_max, self.apps.len())
+             } else {
+                 0
+             };
+             // nudge the global visible limit toward desired to spread creation cost
+             let current = VISIBLE_LIMIT.load(Ordering::Relaxed);
+             if desired == 0 {
+                 // closing -> quickly collapse
+                 if current != 0 {
+                     VISIBLE_LIMIT.store(0, Ordering::Relaxed);
+                 }
+             } else if current < desired {
+                 let add = (desired - current).min(VISIBLE_STEP);
+                 VISIBLE_LIMIT.fetch_add(add, Ordering::Relaxed);
+             } else if current > desired {
+                 // clamp down if configured max reduced
+                 VISIBLE_LIMIT.store(desired, Ordering::Relaxed);
+             }
+
+             let take_n = std::cmp::min(VISIBLE_LIMIT.load(Ordering::Relaxed), self.apps.len());
+             tracing::debug!(total_apps = self.apps.len(), configured_max, visible = take_n, desired, "building visible app children");
+
              self.open
                  .then(|| {
-                     self.apps.iter().enumerate().map(|(i, app)| {
-                         Spatial::default()
-                             .pos(Hex::spiral(i + 1).get_coords())
-                             .build()
-                             .child(app.reify_substate(move |state: &mut HexagonLauncher| {
-                                 // log & count access to per-app substate
-                                 APP_REIFY_COUNT.fetch_add(1, Ordering::Relaxed);
-                                 tracing::trace!(index = i, "accessing app substate");
-                                 state.apps.get_mut(i)
-                             }))
-                     })
+                     self.apps
+                         .iter()
+                         .enumerate()
+                         .take(take_n)
+                         .map(|(i, app)| {
+                             Spatial::default()
+                                 .pos(self.positions[i])
+                                 .build()
+                                 .child(app.reify_substate(move |state: &mut HexagonLauncher| {
+                                     // log & count access to per-app substate
+                                     APP_REIFY_COUNT.fetch_add(1, Ordering::Relaxed);
+                                     tracing::trace!(index = i, "accessing app substate");
+                                     state.apps.get_mut(i)
+                                 }))
+                         })
                  })
                  .into_iter()
-                 .flatten(),
-         )
+                 .flatten()
+         })
 		;
 
          let elapsed = start.elapsed().as_nanos() as u64;
