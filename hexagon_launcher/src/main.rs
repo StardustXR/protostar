@@ -87,7 +87,7 @@ pub struct HexagonLauncher {
 	snapshots: Vec<Snapshot>,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 struct Snapshot {
 	name: String,
 	cached_texture: Option<ResourceID>,
@@ -170,16 +170,17 @@ impl ClientState for HexagonLauncher {
 			.apps
 			.iter()
 			.map(|a| Snapshot {
-				name: a.app.name().unwrap_or_default(),
-				cached_texture: a.cached_texture.get().cloned(),
-				cached_gltf: a.cached_gltf.get().cloned(),
-			})
-			.collect();
-    }
-}
-impl Reify for HexagonLauncher {
-	#[tracing::instrument(skip_all)]
-	fn reify(&self) -> impl Element<Self> {
+-					name: a.app.name().unwrap_or_default(),
++					name: a.app.name().unwrap_or_default().to_string(),
+                     cached_texture: a.cached_texture.get().cloned(),
+                     cached_gltf: a.cached_gltf.get().cloned(),
+                 })
+                 .collect();
+     }
+ }
+ impl Reify for HexagonLauncher {
+     #[tracing::instrument(skip_all)]
+     fn reify(&self) -> impl Element<Self> {
 		// measure reify latency and count
 		let start = std::time::Instant::now();
 
