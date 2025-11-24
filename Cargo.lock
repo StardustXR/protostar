@@ -2657,7 +2657,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a56d757972c98b346a9b766e3f02746cde6dd1cd1d1d563472929fdd74bec4d"
 dependencies = [
  "anyhow",
- "itertools 0.11.0",
+ "itertools 0.12.1",
  "proc-macro2",
  "quote",
  "syn 2.0.110",
@@ -3432,7 +3432,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-asteroids"
 version = "2.0.0"
-source = "git+https://github.com/StardustXR/asteroids.git?branch=dev#75ef2c352adbd2701c165a1eaf7ae4ef0c5da817"
+source = "git+https://github.com/StardustXR/asteroids.git?branch=dev#7ab71c1fb346db93b4dea9bc6448782d1dd2a9fa"
 dependencies = [
  "bumpalo",
  "derive-where",
@@ -3486,7 +3486,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-molecules"
 version = "0.45.0"
-source = "git+https://github.com/StardustXR/molecules.git?branch=dev#75d5358119264c39e3569306451c7058ce9f29ac"
+source = "git+https://github.com/StardustXR/molecules.git?branch=dev#41b1aeb34b5440cbeab773b1996c361afe1cb75b"
 dependencies = [
  "ashpd",
  "futures-util",
@@ -4102,7 +4102,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2fb391ac70462b3097a755618fbf9c8f95ecc1eb379a414f7b46f202ed10db1f"
 dependencies = [
  "cc",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.6",
 ]
 
 [[package]]
