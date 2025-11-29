@@ -5,30 +5,6 @@ members = ["hexagon_launcher", "protostar", "single", "sirius"]
 [workspace.dependencies]
 tokio = { version = "1.47.1", features = ["rt", "tokio-macros", "sync"] }
 serde = "1.0.219"
-
-[workspace.dependencies.stardust-xr-fusion]
-git = "https://github.com/StardustXR/core.git"
-branch = "dev"
-
-[workspace.dependencies.stardust-xr-molecules]
-git = "https://github.com/StardustXR/molecules.git"
-branch = "dev"
-
-[workspace.dependencies.stardust-xr-asteroids]
-git = "https://github.com/StardustXR/asteroids.git"
-branch = "dev"
-
-[profile]
-
-[profile.dev]
-opt-level = 3
-
-[profile.wasm-dev]
-inherits = "dev"
-opt-level = 1
-
-[profile.server-dev]
-inherits = "dev"
-
-[profile.android-dev]
-inherits = "dev"
+stardust-xr-fusion = "0.50.0"
+stardust-xr-molecules = "0.50.0"
+stardust-xr-asteroids = "0.50.0"
