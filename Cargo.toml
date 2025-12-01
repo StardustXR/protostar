@@ -5,6 +5,15 @@ members = ["hexagon_launcher", "protostar", "single", "sirius"]
 [workspace.dependencies]
 tokio = { version = "1.47.1", features = ["rt", "tokio-macros", "sync"] }
 serde = "1.0.219"
-stardust-xr-fusion = "0.50.0"
-stardust-xr-molecules = "0.50.0"
-stardust-xr-asteroids = "0.50.0"
+
+[workspace.dependencies.stardust-xr-fusion]
+version = "0.50.0"
+git = "https://github.com/StardustXR/core.git"
+
+[workspace.dependencies.stardust-xr-molecules]
+version = "0.50.0"
+git = "https://github.com/StardustXR/molecules.git"
+
+[workspace.dependencies.stardust-xr-asteroids]
+version = "0.50.0"
+git = "https://github.com/StardustXR/asteroids.git"

@@ -28,11 +28,8 @@ impl<State: ValidState> CustomElement<State> for AppLauncher<State> {
 		info: stardust_xr_asteroids::CreateInnerInfo,
 		_resource: &mut Self::Resource,
 	) -> Result<Self::Inner, Self::Error> {
-		let spatial = Spatial::create(
-			info.parent_space.client().get_root(),
-			Transform::identity(),
-			false,
-		)?;
+		let spatial =
+			Spatial::create(info.parent_space.client().get_root(), Transform::identity())?;
 		spatial.set_relative_transform(info.parent_space, Transform::from_translation([0.0; 3]))?;
 		Ok((spatial, false))
 	}
