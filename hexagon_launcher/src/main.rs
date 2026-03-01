@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use single::{APP_SIZE, App, BTN_COLOR, BTN_SELECTED_COLOR, MODEL_SCALE};
 use stardust_xr_asteroids::{
 	ClientState, CustomElement, Element, Migrate, Reify, Transformable, client,
-	elements::{Button, Grabbable, Model, ModelPart, PointerMode, Spatial},
+	elements::{Button, Derezzable, Grabbable, Model, ModelPart, PointerMode, Spatial},
 };
 use stardust_xr_fusion::{
 	drawable::MaterialParameter,
@@ -17,7 +17,10 @@ use stardust_xr_fusion::{
 	project_local_resources,
 	spatial::Transform,
 };
-use std::f32::consts::{FRAC_PI_2, PI};
+use std::{
+	f32::consts::{FRAC_PI_2, PI},
+	process,
+};
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main(flavor = "current_thread")]
@@ -106,6 +109,16 @@ impl Reify for HexagonLauncher {
 		.pointer_mode(PointerMode::Align)
 		.reparentable(true)
 		.build()
+		.child(
+			Derezzable::new(
+				|_| process::exit(0),
+				Shape::Cylinder(CylinderShape {
+					radius: APP_SIZE / 2.0,
+					length: 0.01,
+				}),
+			)
+			.build(),
+		)
 		.child(
 			Button::new(|state: &mut HexagonLauncher| {
 				state.open = !state.open;
