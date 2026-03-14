@@ -8,7 +8,7 @@ use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use single::{APP_SIZE, App, BTN_COLOR, BTN_SELECTED_COLOR, MODEL_SCALE};
 use stardust_xr_asteroids::{
-	ClientState, CustomElement, Element, Migrate, Reify, Transformable, client,
+	ClientState, Context, CustomElement, Element, Migrate, Reify, Tasker, Transformable, client,
 	elements::{Button, Derezzable, Grabbable, Model, ModelPart, PointerMode, Spatial},
 };
 use stardust_xr_fusion::{
@@ -91,7 +91,7 @@ impl ClientState for HexagonLauncher {
 }
 impl Reify for HexagonLauncher {
 	#[tracing::instrument(skip_all)]
-	fn reify(&self) -> impl Element<Self> {
+	fn reify(&self, context: &Context, tasks: impl Tasker<Self>) -> impl Element<Self> {
 		// Build UI based on current state
 		Grabbable::new(
 			Shape::Cylinder(CylinderShape {
@@ -150,9 +150,11 @@ impl Reify for HexagonLauncher {
 						Spatial::default()
 							.pos(Hex::spiral(i + 1).get_coords())
 							.build()
-							.child(app.reify_substate(move |state: &mut HexagonLauncher| {
-								state.apps.get_mut(i)
-							}))
+							.child(app.reify_substate(
+								context,
+								tasks.clone(),
+								move |state: &mut HexagonLauncher| state.apps.get_mut(i),
+							))
 					})
 				})
 				.into_iter()

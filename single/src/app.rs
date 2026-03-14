@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use stardust_xr_asteroids::elements::{
 	Grabbable, Lines, Model, ModelPart, PointerMode, Text, line_from_points,
 };
-use stardust_xr_asteroids::{CustomElement, Element, Reify, Transformable};
+use stardust_xr_asteroids::{Context, CustomElement, Element, Reify, Tasker, Transformable};
 use stardust_xr_fusion::drawable::{TextBounds, TextFit};
 use stardust_xr_fusion::node::NodeError;
 use stardust_xr_fusion::values::ResourceID;
@@ -90,7 +90,7 @@ impl App {
 }
 impl Reify for App {
 	#[tracing::instrument(skip_all)]
-	fn reify(&self) -> impl Element<Self> {
+	fn reify(&self, _context: &Context, _tasks: impl Tasker<Self>) -> impl Element<Self> {
 		// The field shape for the grabbable
 		let field_shape = Shape::Cylinder(CylinderShape {
 			radius: APP_SIZE / 2.0,

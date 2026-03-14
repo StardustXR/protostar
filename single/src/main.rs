@@ -1,8 +1,10 @@
-use stardust_xr_asteroids::{ClientState, CustomElement, Element, Migrate, Reify, client, elements::Spatial};
 use clap::Parser;
 use protostar::xdg::DesktopFile;
 use serde::{Deserialize, Serialize};
 use single::App;
+use stardust_xr_asteroids::{
+	ClientState, Context, CustomElement, Element, Migrate, Reify, Tasker, client, elements::Spatial,
+};
 use stardust_xr_fusion::project_local_resources;
 use std::path::PathBuf;
 use tracing_subscriber::EnvFilter;
@@ -43,11 +45,11 @@ impl ClientState for Single {
 }
 impl Reify for Single {
 	#[tracing::instrument(skip_all)]
-	fn reify(&self) -> impl Element<Self> {
+	fn reify(&self, context: &Context, tasks: impl Tasker<Self>) -> impl Element<Self> {
 		Spatial::default().build().maybe_child(
-			self.app
-				.as_ref()
-				.map(|app| app.reify_substate(|state: &mut Self| state.app.as_mut())),
+			self.app.as_ref().map(|app| {
+				app.reify_substate(context, tasks, |state: &mut Self| state.app.as_mut())
+			}),
 		)
 	}
 }

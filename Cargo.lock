@@ -3148,8 +3148,8 @@ checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 
 [[package]]
 name = "stardust-xr-asteroids"
-version = "0.50.0"
-source = "git+https://github.com/StardustXR/asteroids.git#9ea8078c24d7a74eafb35b9f7d7e32f72d2d22e3"
+version = "0.51.0"
+source = "git+https://github.com/StardustXR/asteroids.git#50b5f95ad40a150be61ba7e82c90fbc56d1e6c2c"
 dependencies = [
  "bumpalo",
  "derive-where",
@@ -3176,8 +3176,8 @@ dependencies = [
 
 [[package]]
 name = "stardust-xr-fusion"
-version = "0.50.0"
-source = "git+https://github.com/StardustXR/core.git#058d4c855a1cc3e809c0cb2723b59eeb2aaddc5c"
+version = "0.51.0"
+source = "git+https://github.com/StardustXR/core.git#e7ce3bc3962c563967dfad6b00e1fb290f11eeb7"
 dependencies = [
  "color-eyre",
  "convert_case",
@@ -3202,8 +3202,8 @@ dependencies = [
 
 [[package]]
 name = "stardust-xr-gluon"
-version = "0.50.0"
-source = "git+https://github.com/StardustXR/core.git#058d4c855a1cc3e809c0cb2723b59eeb2aaddc5c"
+version = "0.51.0"
+source = "git+https://github.com/StardustXR/core.git#e7ce3bc3962c563967dfad6b00e1fb290f11eeb7"
 dependencies = [
  "futures",
  "nanoid",
@@ -3215,8 +3215,8 @@ dependencies = [
 
 [[package]]
 name = "stardust-xr-molecules"
-version = "0.50.0"
-source = "git+https://github.com/StardustXR/molecules.git#d77dc87cb61dadf211e0e9ee40e08763bcf2de6b"
+version = "0.51.0"
+source = "git+https://github.com/StardustXR/molecules.git#1579b4c7cec85e2a823ad0baf50c268b98b4a522"
 dependencies = [
  "ashpd",
  "futures-util",
@@ -3233,8 +3233,8 @@ dependencies = [
 
 [[package]]
 name = "stardust-xr-protocol"
-version = "0.50.0"
-source = "git+https://github.com/StardustXR/core.git#058d4c855a1cc3e809c0cb2723b59eeb2aaddc5c"
+version = "0.51.0"
+source = "git+https://github.com/StardustXR/core.git#e7ce3bc3962c563967dfad6b00e1fb290f11eeb7"
 dependencies = [
  "fnv",
  "kdl",
@@ -3243,8 +3243,8 @@ dependencies = [
 
 [[package]]
 name = "stardust-xr-wire"
-version = "0.50.0"
-source = "git+https://github.com/StardustXR/core.git#058d4c855a1cc3e809c0cb2723b59eeb2aaddc5c"
+version = "0.51.0"
+source = "git+https://github.com/StardustXR/core.git#e7ce3bc3962c563967dfad6b00e1fb290f11eeb7"
 dependencies = [
  "dirs 6.0.0",
  "flatbuffers",

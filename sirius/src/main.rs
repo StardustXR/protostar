@@ -5,7 +5,7 @@ use protostar::xdg::DesktopFile;
 use serde::{Deserialize, Serialize};
 use single::{App, BTN_COLOR, BTN_SELECTED_COLOR};
 use stardust_xr_asteroids::{
-	ClientState, CustomElement, Element, Migrate, Reify, Transformable, client,
+	ClientState, Context, CustomElement, Element, Migrate, Reify, Tasker, Transformable, client,
 	elements::{Button, Grabbable, Model, ModelPart, PointerMode, Spatial},
 };
 use stardust_xr_fusion::{
@@ -95,7 +95,7 @@ impl ClientState for Sirius {
 	}
 }
 impl Reify for Sirius {
-	fn reify(&self) -> impl Element<Self> {
+	fn reify(&self, context: &Context, tasks: impl Tasker<Self>) -> impl Element<Self> {
 		Grabbable::new(
 			Shape::Box([0.1; 3].into()),
 			self.pos,
@@ -142,9 +142,11 @@ impl Reify for Sirius {
 						Some((
 							app.app.name()?.to_string(),
 							Spatial::default().pos([starpos, 0.1, 0.0]).build().child(
-								app.reify_substate(move |state: &mut Sirius| {
-									state.apps.get_mut(pos)
-								}),
+								app.reify_substate(
+									context,
+									tasks.clone(),
+									move |state: &mut Sirius| state.apps.get_mut(pos),
+								),
 							),
 						))
 					})
