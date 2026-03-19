@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Hexagon Launcher
+Comment=App launcher that shows all your apps in a hexagonal grid
+Type=Application
+Exec=hexagon_launcher
+Terminal=false
+Categories=XR;Stardust;
+Keywords=XR;Stardust;
+Icon=org.stardustxr.HexagonLauncher
+StartupNotify=false
+NoDisplay=true
