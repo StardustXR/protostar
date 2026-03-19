@@ -73,10 +73,12 @@ impl ClientState for HexagonLauncher {
 	const APP_ID: &'static str = "org.protostar.hexagon_launcher";
 
 	fn initial_state_update(&mut self) {
+		let current_desktop = std::env::var("XDG_CURRENT_DESKTOP").unwrap_or_default();
 		// Load desktop files
 		self.apps = get_desktop_files()
 			.filter_map(|d| DesktopFile::parse(d).ok())
 			.filter(|d| !d.no_display)
+			.filter(|d| d.only_show_in.is_empty() || d.only_show_in.contains(&current_desktop))
 			.filter_map(|d| App::new(d).ok())
 			.collect();
 

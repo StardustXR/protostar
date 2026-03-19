@@ -131,6 +131,7 @@ pub struct DesktopFile {
 	pub categories: Vec<String>,
 	pub icon: Option<String>,
 	pub no_display: bool,
+	pub only_show_in: Vec<String>,
 }
 
 impl From<DesktopFile> for PathBuf {
@@ -165,6 +166,7 @@ impl DesktopFile {
 		let mut icon = None;
 		let mut no_display = false;
 		let mut desktop_entry_found = false;
+		let mut only_show_in = Vec::new();
 
 		let re = Regex::new(r"^\[([^\]]*)\]$").unwrap();
 
@@ -208,6 +210,13 @@ impl DesktopFile {
 				}
 				"Icon" => icon = Some(value.to_string()),
 				"NoDisplay" => no_display = value == "true",
+				"OnlyShowIn" => {
+					only_show_in = value
+						.split(';')
+						.map(|s| s.to_string())
+						.filter(|s| !s.is_empty())
+						.collect()
+				}
 				_ => (), // Ignore unknown keys
 			}
 		}
@@ -220,6 +229,7 @@ impl DesktopFile {
 			categories,
 			icon,
 			no_display,
+			only_show_in,
 		})
 	}
 }
@@ -342,6 +352,7 @@ fn test_get_icon_path() {
 		categories: vec![],
 		icon: Some("com.belmoussaoui.ashpd.demo".into()),
 		no_display: false,
+		only_show_in: vec![],
 	};
 
 	// Call the get_icon_path() function with a size argument and store the result
