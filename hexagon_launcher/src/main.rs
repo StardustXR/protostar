@@ -111,16 +111,21 @@ impl Reify for HexagonLauncher {
 		.pointer_mode(PointerMode::Align)
 		.reparentable(true)
 		.build()
-		// .child(
-		// 	Derezzable::new(
-		// 		|_| process::exit(0),
-		// 		Shape::Cylinder(CylinderShape {
-		// 			radius: APP_SIZE / 2.0,
-		// 			length: 0.01,
-		// 		}),
-		// 	)
-		// 	.build(),
-		// )
+		.child(
+			Spatial::default()
+				.rot(Quat::from_rotation_x(FRAC_PI_2))
+				.build()
+				.child(
+					Derezzable::new(
+						|_| process::exit(0),
+						Shape::Cylinder(CylinderShape {
+							radius: APP_SIZE / 2.0,
+							length: 0.005,
+						}),
+					)
+					.build(),
+				),
+		)
 		.child(
 			Button::new(|state: &mut HexagonLauncher| {
 				state.open = !state.open;
