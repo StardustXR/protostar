@@ -94,7 +94,7 @@ impl Reify for App {
 		// The field shape for the grabbable
 		let field_shape = Shape::Cylinder(CylinderShape {
 			radius: APP_SIZE / 2.0,
-			length: 0.01,
+			length: 0.005,
 		});
 
 		let converted = Vec3::from(self.pos);

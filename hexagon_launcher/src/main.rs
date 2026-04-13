@@ -98,7 +98,7 @@ impl Reify for HexagonLauncher {
 		Grabbable::new(
 			Shape::Cylinder(CylinderShape {
 				radius: APP_SIZE / 2.0,
-				length: 0.01,
+				length: 0.005,
 			}),
 			self.pos,
 			self.rot,
@@ -111,21 +111,21 @@ impl Reify for HexagonLauncher {
 		.pointer_mode(PointerMode::Align)
 		.reparentable(true)
 		.build()
-		.child(
-			Derezzable::new(
-				|_| process::exit(0),
-				Shape::Cylinder(CylinderShape {
-					radius: APP_SIZE / 2.0,
-					length: 0.01,
-				}),
-			)
-			.build(),
-		)
+		// .child(
+		// 	Derezzable::new(
+		// 		|_| process::exit(0),
+		// 		Shape::Cylinder(CylinderShape {
+		// 			radius: APP_SIZE / 2.0,
+		// 			length: 0.01,
+		// 		}),
+		// 	)
+		// 	.build(),
+		// )
 		.child(
 			Button::new(|state: &mut HexagonLauncher| {
 				state.open = !state.open;
 			})
-			.pos([0.0, 0.0, 0.005])
+			.pos([0.0, 0.0, 0.006])
 			.size([APP_SIZE / 2.0; 2])
 			.build(),
 		)
