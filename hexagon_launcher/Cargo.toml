@@ -4,7 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [features]
+default = ["systemd_launching"]
 tracy = ["dep:tracing-tracy", "stardust-xr-asteroids/tracy"]
+systemd_launching = ["protostar/systemd_launching"]
 
 [dependencies]
 protostar = { path = "../protostar" }

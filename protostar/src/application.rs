@@ -8,6 +8,8 @@ use stardust_xr_fusion::{
 	spatial::SpatialRefAspect,
 };
 use std::{
+	borrow::Cow,
+	env,
 	os::unix::process::CommandExt,
 	process::{Command, Stdio, exit},
 };
@@ -62,45 +64,69 @@ impl Application {
 			else {
 				return;
 			};
-
-			let Ok(connection_env) = client.get_root().get_connection_environment().await else {
-				return;
-			};
-			for (k, v) in connection_env.into_iter() {
-				// this should be fine, probably?
-				unsafe {
-					std::env::set_var(k, v);
-				}
-			}
-
-			// this should be fine, probably?
-			unsafe {
-				std::env::set_var("STARDUST_STARTUP_TOKEN", startup_token);
-			}
-
 			// Strip/ignore field codes https://specifications.freedesktop.org/desktop-entry-spec/latest/ar01s07.html
 			let re = Regex::new(r"%[fFuUdDnNickvm]").unwrap();
-			let exec: std::borrow::Cow<'_, str> = re.replace_all(&executable, "");
+			let exec: Cow<'_, str> = re.replace_all(&executable, "");
 
-			unsafe {
-				if let ForkResult::Child = nix::unistd::fork().expect("fork died???? how?????") {
-					let _ = Command::new("sh")
-						.arg("-c")
-						.arg(exec.to_string())
-						.stdin(Stdio::null())
-						.stdout(Stdio::null())
-						.stderr(Stdio::null())
-						.pre_exec(|| {
-							_ = setsid();
-							Ok(())
-						})
-						.spawn()
-						.expect("Failed to start child process");
-					exit(0);
+			let Ok(mut connection_env) = client.get_root().get_connection_environment().await
+			else {
+				return;
+			};
+			connection_env.insert("STARDUST_STARTUP_TOKEN".to_string(), startup_token);
+			if let Ok(v) = env::var("WAYLAND_DISPLAY") {
+				connection_env.insert("WAYLAND_DISPLAY".to_string(), v);
+			}
+			if let Ok(v) = env::var("DISPLAY") {
+				connection_env.insert("DISPLAY".to_string(), v);
+			}
+			if let Ok(v) = env::var("XDG_CURRENT_DESKTOP") {
+				connection_env.insert("XDG_CURRENT_DESKTOP".to_string(), v);
+			}
+			#[cfg(feature = "systemd_launching")]
+			{
+				use stardust_xr_fusion::zbus;
+				let conn = zbus::connection::Connection::session().await.ok();
+				let systemd_proxy = if let Some(conn) = conn.as_ref() {
+					zbus_systemd::systemd1::ManagerProxy::new(conn).await.ok()
+				} else {
+					None
+				};
+				if let Some(systemd) = systemd_proxy {
+					crate::systemd_launching::launch_systemd(&systemd, exec, connection_env).await;
+				} else {
+					double_fork_launch(exec, connection_env);
 				}
+			}
+			#[cfg(not(feature = "systemd_launching"))]
+			{
+				double_fork_launch(exec, connection_env);
 			}
 		});
 
 		Ok(())
+	}
+}
+
+fn double_fork_launch(
+	exec: Cow<'_, str>,
+	connection_env: impl IntoIterator<Item = (String, String)>,
+) {
+	unsafe {
+		if let ForkResult::Child = nix::unistd::fork().expect("fork died???? how?????") {
+			let _ = Command::new("sh")
+				.arg("-c")
+				.arg(exec.to_string())
+				.stdin(Stdio::null())
+				.stdout(Stdio::null())
+				.stderr(Stdio::null())
+				.envs(connection_env)
+				.pre_exec(|| {
+					_ = setsid();
+					Ok(())
+				})
+				.spawn()
+				.expect("Failed to start child process");
+			exit(0);
+		}
 	}
 }
