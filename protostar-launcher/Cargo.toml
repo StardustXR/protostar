@@ -1,0 +1,24 @@
+[package]
+name = "protostar-launcher"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+zbus = { version = "5.12", features = ["tokio"], optional = true }
+zbus_systemd = { version = "0.26000.0", features = [
+	"systemd1",
+], optional = true }
+rand = { version = "0.10.1", optional = true }
+zvariant = { version = "5.10.0", optional = true }
+which = { version = "8", optional = true }
+nix = { version = "0.27.1", features = ["process"] }
+
+[features]
+#default = ["systemd_launching"]
+systemd_launching = [
+	"dep:zbus",
+	"dep:zbus_systemd",
+	"dep:rand",
+	"dep:zvariant",
+	"dep:which",
+]

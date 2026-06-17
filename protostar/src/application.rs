@@ -1,5 +1,4 @@
 use crate::xdg::{DesktopFile, Icon, IconType};
-use nix::{libc::setsid, unistd::ForkResult};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use stardust_xr_fusion::{
@@ -10,8 +9,6 @@ use stardust_xr_fusion::{
 use std::{
 	borrow::Cow,
 	env,
-	os::unix::process::CommandExt,
-	process::{Command, Stdio, exit},
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -82,51 +79,9 @@ impl Application {
 			if let Ok(v) = env::var("XDG_CURRENT_DESKTOP") {
 				connection_env.insert("XDG_CURRENT_DESKTOP".to_string(), v);
 			}
-			#[cfg(feature = "systemd_launching")]
-			{
-				use stardust_xr_fusion::zbus;
-				let conn = zbus::connection::Connection::session().await.ok();
-				let systemd_proxy = if let Some(conn) = conn.as_ref() {
-					zbus_systemd::systemd1::ManagerProxy::new(conn).await.ok()
-				} else {
-					None
-				};
-				if let Some(systemd) = systemd_proxy {
-					crate::systemd_launching::launch_systemd(&systemd, exec, connection_env).await;
-				} else {
-					double_fork_launch(exec, connection_env);
-				}
-			}
-			#[cfg(not(feature = "systemd_launching"))]
-			{
-				double_fork_launch(exec, connection_env);
-			}
+			protostar_launcher::launch(exec, connection_env).await
 		});
 
 		Ok(())
-	}
-}
-
-fn double_fork_launch(
-	exec: Cow<'_, str>,
-	connection_env: impl IntoIterator<Item = (String, String)>,
-) {
-	unsafe {
-		if let ForkResult::Child = nix::unistd::fork().expect("fork died???? how?????") {
-			let _ = Command::new("sh")
-				.arg("-c")
-				.arg(exec.to_string())
-				.stdin(Stdio::null())
-				.stdout(Stdio::null())
-				.stderr(Stdio::null())
-				.envs(connection_env)
-				.pre_exec(|| {
-					_ = setsid();
-					Ok(())
-				})
-				.spawn()
-				.expect("Failed to start child process");
-			exit(0);
-		}
 	}
 }

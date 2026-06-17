@@ -2496,8 +2496,7 @@ dependencies = [
  "linicon-theme",
  "manifest-dir-macros",
  "mint",
- "nix 0.27.1",
- "rand 0.10.1",
+ "protostar-launcher",
  "regex",
  "resvg",
  "rustc-hash 1.1.0",
@@ -2512,7 +2511,16 @@ dependencies = [
  "tween",
  "ustr",
  "walkdir",
+]
+
+[[package]]
+name = "protostar-launcher"
+version = "0.1.0"
+dependencies = [
+ "nix 0.27.1",
+ "rand 0.10.1",
  "which",
+ "zbus",
  "zbus_systemd",
  "zvariant",
 ]
@@ -3861,9 +3869,9 @@ dependencies = [
 
 [[package]]
 name = "tween"
-version = "2.1.0"
+version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7311599fedb85d1a45d3feb4e27a98e502316b6e2897f0617e05a2a5848f7754"
+checksum = "743bc0ff7445bbc1f3546419dd4912374be310f6ea80e43910478fe43bc480b9"
 
 [[package]]
 name = "typenum"

@@ -1,6 +1,5 @@
 use std::{borrow::Cow, path::PathBuf};
 
-use stardust_xr_fusion::zbus;
 use which::which;
 use zbus::zvariant::{OwnedValue, Type, Value};
 use zbus_systemd::systemd1::ManagerProxy;

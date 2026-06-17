@@ -1,6 +1,12 @@
 [workspace]
 resolver = "2"
-members = ["hexagon_launcher", "protostar", "single", "sirius"]
+members = [
+	"hexagon_launcher",
+	"protostar",
+	"protostar-launcher",
+	"single",
+	"sirius",
+]
 
 [workspace.dependencies]
 tokio = { version = "1.47.1", features = ["rt", "tokio-macros", "sync"] }
