@@ -13,13 +13,16 @@ tokio = { version = "1.47.1", features = ["rt", "tokio-macros", "sync"] }
 serde = "1.0.219"
 
 [workspace.dependencies.stardust-xr-fusion]
-version = "0.51.0"
+# version = "0.51.0"
 git = "https://github.com/StardustXR/core.git"
+branch = "binder"
 
 [workspace.dependencies.stardust-xr-molecules]
-version = "0.51.0"
+# version = "0.51.0"
 git = "https://github.com/StardustXR/molecules.git"
+branch = "binder"
 
 [workspace.dependencies.stardust-xr-asteroids]
-version = "0.51.0"
+# version = "0.51.0"
 git = "https://github.com/StardustXR/asteroids.git"
+branch = "binder"

@@ -1,6 +1,6 @@
 mod hex;
 
-use glam::Quat;
+use glam::{Mat4, Quat};
 use hex::Hex;
 use mint::{Quaternion, Vector3};
 use protostar::xdg::{DesktopFile, get_desktop_files};
@@ -8,14 +8,13 @@ use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use single::{APP_SIZE, App, BTN_COLOR, BTN_SELECTED_COLOR, MODEL_SCALE};
 use stardust_xr_asteroids::{
-	ClientState, Context, CustomElement, Element, Migrate, Reify, Tasker, Transformable, client,
-	elements::{Button, Derezzable, Grabbable, Model, ModelPart, PointerMode, Spatial},
+	ClientState, Context, CustomElement, Element, Entity, Migrate, Reify, Tasker, Transformable,
+	client,
+	components::{Derezzable, Grabbable, PointerMode, Reparentable},
+	elements::{Button, Model, ModelPart, Spatial},
 };
 use stardust_xr_fusion::{
-	drawable::MaterialParameter,
-	fields::{CylinderShape, Shape},
-	project_local_resources,
-	spatial::Transform,
+	drawable::MaterialParameter, fields::Shape, project_local_resources, spatial::Transform,
 };
 use std::{
 	f32::consts::{FRAC_PI_2, PI},
@@ -41,7 +40,9 @@ async fn main() {
 		.with_filter(EnvFilter::from_default_env());
 	registry.with(log_layer).init();
 
-	client::run::<HexagonLauncher>(&[&project_local_resources!("../res")]).await
+	client::run::<HexagonLauncher>(&[&project_local_resources!("../res")])
+		.await
+		.unwrap()
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -94,78 +95,72 @@ impl ClientState for HexagonLauncher {
 impl Reify for HexagonLauncher {
 	#[tracing::instrument(skip_all)]
 	fn reify(&self, context: &Context, tasks: impl Tasker<Self>) -> impl Element<Self> {
-		// Build UI based on current state
-		Grabbable::new(
-			Shape::Cylinder(CylinderShape {
+		let field_shape = Shape::Transform {
+			shape: Box::new(Shape::Cylinder {
 				radius: APP_SIZE / 2.0,
 				length: 0.005,
 			}),
-			self.pos,
-			self.rot,
-			|state: &mut Self, pos, rot| {
-				state.pos = pos;
-				state.rot = rot;
-			},
-		)
-		.field_transform(Transform::from_rotation(Quat::from_rotation_x(FRAC_PI_2)))
-		.pointer_mode(PointerMode::Align)
-		.reparentable(true)
-		.build()
-		.child(
-			Spatial::default()
-				.rot(Quat::from_rotation_x(FRAC_PI_2))
-				.build()
-				.child(
-					Derezzable::new(
-						|_| process::exit(0),
-						Shape::Cylinder(CylinderShape {
-							radius: APP_SIZE / 2.0,
-							length: 0.005,
-						}),
-					)
-					.build(),
-				),
-		)
-		.child(
-			Button::new(|state: &mut HexagonLauncher| {
-				state.open = !state.open;
-			})
-			.pos([0.0, 0.0, 0.006])
-			.size([APP_SIZE / 2.0; 2])
-			.build(),
-		)
-		.child(
-			Model::namespaced("protostar", "hexagon/hexagon")
-				.transform(Transform::from_rotation_scale(
-					Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
-					[MODEL_SCALE; 3],
-				))
-				.part(ModelPart::new("Hex").mat_param(
-					"color",
-					MaterialParameter::Color(if self.open {
-						BTN_SELECTED_COLOR
-					} else {
-						BTN_COLOR
-					}),
-				))
-				.build(),
-		)
-		.children(
-			self.open
-				.then(|| {
-					self.apps.iter().enumerate().map(|(i, app)| {
-						Spatial::default()
-							.pos(Hex::spiral(i + 1).get_coords())
-							.build()
-							.child(app.reify_substate(
-								context,
-								tasks.clone(),
-								move |state: &mut HexagonLauncher| state.apps.get_mut(i),
-							))
-					})
+			transform: Mat4::from_rotation_x(FRAC_PI_2).into(),
+		};
+		// Build UI based on current state
+		Entity::new(field_shape)
+			.pos(self.pos)
+			.rot(self.rot)
+			.component(
+				Grabbable::new(self.pos, self.rot, |state: &mut Self, pos, rot| {
+					state.pos = pos;
+					state.rot = rot;
 				})
-				.into_iter()
-				.flatten(),
-		)
+				.pointer_mode(PointerMode::Align),
+			)
+			.component(Reparentable::default())
+			.component(Derezzable::new(|_| process::exit(0)))
+			// .component(Tappable::new(Vec3::Z, |state: &mut Self| {
+			// 	state.open = !state.open
+			// }))
+			.build()
+			.child(
+				Button::new(|state: &mut HexagonLauncher| {
+					state.open = !state.open;
+				})
+				.pos([0.0, 0.0, 0.006])
+				.size([APP_SIZE / 2.0; 2])
+				.build(),
+			)
+			.child(
+				Model::namespaced("protostar", "hexagon/hexagon")
+					.transform(Transform::from_rotation_scale(
+						Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
+						[MODEL_SCALE; 3],
+					))
+					.part(ModelPart::new("Hex").mat_param(
+						"color",
+						MaterialParameter::Color {
+							value: if self.open {
+								BTN_SELECTED_COLOR
+							} else {
+								BTN_COLOR
+							},
+						},
+					))
+					.build(),
+			)
+			.children(
+				self.open
+					.then(|| {
+						self.apps.iter().enumerate().map(|(i, app)| {
+							Spatial::default()
+								.pos(Hex::spiral(i + 1).get_coords())
+								.build()
+								.child(app.reify_substate(
+									context,
+									tasks.clone(),
+									move |state: &mut HexagonLauncher| state.apps.get_mut(i),
+								))
+						})
+					})
+					.into_iter()
+					.flatten(),
+			)
 	}
 }

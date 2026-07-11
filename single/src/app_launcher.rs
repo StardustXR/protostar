@@ -1,9 +1,7 @@
 use protostar::application::Application;
 use stardust_xr_asteroids::{Context, CustomElement, ValidState};
 use stardust_xr_fusion::{
-	node::{NodeError, NodeType},
-	root::FrameInfo,
-	spatial::{Spatial, SpatialAspect, SpatialRef, Transform},
+	Error as NodeError, client::FrameInfo, spatial::{Spatial, SpatialExt as _, SpatialRef, Transform}
 };
 use std::fmt::Debug;
 
@@ -18,40 +16,44 @@ impl<State: ValidState> AppLauncher<State> {
 	}
 }
 impl<State: ValidState> CustomElement<State> for AppLauncher<State> {
-	type Inner = (Spatial, bool);
-	type Resource = ();
+	type Inner = (Spatial, SpatialRef, bool);
 	type Error = NodeError;
 
-	fn create_inner(
+	async fn create_inner(
 		&self,
-		_asteroids_context: &stardust_xr_asteroids::Context,
+		context: &stardust_xr_asteroids::Context,
 		info: stardust_xr_asteroids::CreateInnerInfo,
-		_resource: &mut Self::Resource,
 	) -> Result<Self::Inner, Self::Error> {
-		let spatial =
-			Spatial::create(info.parent_space.client().get_root(), Transform::identity())?;
+		let (spatial, spatial_ref) = Spatial::new(
+			&context.stardust_client,
+			context.stardust_client.root(),
+			Transform::IDENTITY,
+		)
+		.await?;
 		spatial.set_relative_transform(info.parent_space, Transform::from_translation([0.0; 3]))?;
-		Ok((spatial, false))
+		Ok((spatial, spatial_ref, false))
 	}
 
-	fn diff(&self, _old_self: &Self, _inner: &mut Self::Inner, _resource: &mut Self::Resource) {}
+	fn diff(
+		&self,
+		_old_self: &Self,
+		_context: &stardust_xr_asteroids::Context,
+		_inner: &mut Self::Inner,
+	) {
+	}
 
 	fn frame(
 		&self,
-		_context: &Context,
+		context: &Context,
 		_info: &FrameInfo,
 		state: &mut State,
 		inner: &mut Self::Inner,
 	) {
-		if !inner.1 {
-			let _ = self.0.launch(&inner.0);
+		if !inner.2 {
+			let _ = self.0.launch(&context.stardust_client, &inner.1);
 			(self.1)(state);
-			inner.1 = true;
+			inner.2 = true;
 		}
-	}
-
-	fn spatial_aspect(&self, inner: &Self::Inner) -> SpatialRef {
-		inner.0.clone().as_spatial_ref()
 	}
 }
 impl<State: ValidState> Debug for AppLauncher<State> {

@@ -5,8 +5,10 @@ use protostar::xdg::DesktopFile;
 use serde::{Deserialize, Serialize};
 use single::{App, BTN_COLOR, BTN_SELECTED_COLOR};
 use stardust_xr_asteroids::{
-	ClientState, Context, CustomElement, Element, Migrate, Reify, Tasker, Transformable, client,
-	elements::{Button, Grabbable, Model, ModelPart, PointerMode, Spatial},
+	ClientState, Context, CustomElement, Element, Entity, Migrate, Reify, Tasker, Transformable,
+	client,
+	components::{Grabbable, PointerMode, Reparentable},
+	elements::{Button, Model, ModelPart, Spatial},
 };
 use stardust_xr_fusion::{
 	drawable::MaterialParameter, fields::Shape, project_local_resources, spatial::Transform,
@@ -33,7 +35,9 @@ async fn main() {
 		.with_filter(EnvFilter::from_default_env());
 	registry.with(log_layer).init();
 
-	client::run::<Sirius>(&[&project_local_resources!("../res")]).await
+	client::run::<Sirius>(&[&project_local_resources!("../res")])
+		.await
+		.unwrap();
 }
 
 #[derive(Debug, Parser)]
@@ -96,17 +100,19 @@ impl ClientState for Sirius {
 }
 impl Reify for Sirius {
 	fn reify(&self, context: &Context, tasks: impl Tasker<Self>) -> impl Element<Self> {
-		Grabbable::new(
-			Shape::Box([0.1; 3].into()),
-			self.pos,
-			self.rot,
-			|state: &mut Self, pos, rot| {
+		Entity::new(Shape::Box {
+			size: [0.1; 3].into(),
+		})
+		.pos(self.pos)
+		.rot(self.rot)
+		.component(
+			Grabbable::new(self.pos, self.rot, |state: &mut Self, pos, rot| {
 				state.pos = pos;
 				state.rot = rot;
-			},
+			})
+			.pointer_mode(PointerMode::Align),
 		)
-		.pointer_mode(PointerMode::Align)
-		.reparentable(true)
+		.component(Reparentable::default())
 		.build()
 		.child(
 			Button::new(|state: &mut Sirius| {
@@ -118,14 +124,16 @@ impl Reify for Sirius {
 		)
 		.child(
 			Model::namespaced("protostar", "button")
-				.transform(Transform::identity())
+				.transform(Transform::IDENTITY)
 				.part(ModelPart::new("?????").mat_param(
 					"color",
-					MaterialParameter::Color(if self.visible {
-						BTN_SELECTED_COLOR
-					} else {
-						BTN_COLOR
-					}),
+					MaterialParameter::Color {
+						value: if self.visible {
+							BTN_SELECTED_COLOR
+						} else {
+							BTN_COLOR
+						},
+					},
 				))
 				.build(),
 		)

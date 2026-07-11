@@ -2,7 +2,7 @@ mod app;
 mod app_launcher;
 
 pub use app::App;
-use stardust_xr_fusion::values::color::{Rgba, color_space::LinearRgb, rgba_linear};
+use stardust_xr_fusion::types::color::{Rgba, color_space::LinearRgb, rgba_linear};
 
 // Constants from original implementation
 pub const APP_SIZE: f32 = 0.06;

@@ -2,14 +2,12 @@ use crate::xdg::{DesktopFile, Icon, IconType};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use stardust_xr_fusion::{
-	node::{NodeError, NodeResult},
-	root::{ClientState, RootAspect},
-	spatial::SpatialRefAspect,
+	Error as NodeError,
+	client::{Client, ClientHandler},
+	spatial::SpatialRef,
+	types::ResourceLoadError,
 };
-use std::{
-	borrow::Cow,
-	env,
-};
+use std::{borrow::Cow, collections::HashMap, env};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Application {
@@ -18,7 +16,7 @@ pub struct Application {
 impl Application {
 	pub fn create(desktop_file: DesktopFile) -> Result<Self, NodeError> {
 		if desktop_file.no_display {
-			return Err(NodeError::DoesNotExist);
+			return Err(ResourceLoadError::NotFound.into());
 		}
 
 		Ok(Application { desktop_file })
@@ -44,19 +42,22 @@ impl Application {
 		icon.and_then(|i| i.cached_process(preferred_px_size).ok())
 	}
 
-	pub fn launch<T: SpatialRefAspect + Clone>(&self, launch_space: &T) -> NodeResult<()> {
+	pub fn launch(
+		&self,
+		client: &Client<impl ClientHandler>,
+		launch_space: &SpatialRef,
+	) -> Result<(), NodeError> {
 		let launch_space = launch_space.clone();
-		let client = launch_space.client().clone();
 
 		let executable = self
 			.desktop_file
 			.command
 			.clone()
-			.ok_or(NodeError::DoesNotExist)?;
+			.ok_or(ResourceLoadError::NotFound)?;
+		let server_interface = client.server().clone();
 		tokio::task::spawn(async move {
-			let Ok(startup_token) = client
-				.get_root()
-				.generate_state_token(ClientState::from_root(&launch_space).unwrap())
+			let Ok(Ok(startup_token)) = server_interface
+				.generate_startup_token(launch_space.clone())
 				.await
 			else {
 				return;
@@ -65,10 +66,7 @@ impl Application {
 			let re = Regex::new(r"%[fFuUdDnNickvm]").unwrap();
 			let exec: Cow<'_, str> = re.replace_all(&executable, "");
 
-			let Ok(mut connection_env) = client.get_root().get_connection_environment().await
-			else {
-				return;
-			};
+			let mut connection_env = HashMap::new();
 			connection_env.insert("STARDUST_STARTUP_TOKEN".to_string(), startup_token);
 			if let Ok(v) = env::var("WAYLAND_DISPLAY") {
 				connection_env.insert("WAYLAND_DISPLAY".to_string(), v);
