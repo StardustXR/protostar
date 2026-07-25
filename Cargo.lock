@@ -347,13 +347,14 @@ checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 [[package]]
 name = "binderbinder"
 version = "0.1.0"
-source = "git+https://github.com/technobaboo/binderbinder#bc67300889b264553697fd5d720a929c21571954"
+source = "git+https://github.com/technobaboo/binderbinder#028a7ebb81cf7f2c68aab2a685eee4690863203d"
 dependencies = [
  "bitflags 2.10.0",
  "dashmap",
  "rustix",
  "thiserror 2.0.18",
  "tokio",
+ "tokio-util",
  "tracing",
  "tracing-subscriber",
 ]
@@ -1423,7 +1424,7 @@ dependencies = [
 [[package]]
 name = "gluon"
 version = "0.1.0"
-source = "git+https://github.com/technobaboo/gluon#7910659982fbfa2d6e31f8741636f6af6b6836a8"
+source = "git+https://github.com/technobaboo/gluon#bf466c4b5e57923696c554870e6de2886b74e124"
 dependencies = [
  "binderbinder",
  "bitflags 2.10.0",
@@ -1436,7 +1437,7 @@ dependencies = [
 [[package]]
 name = "gluon-codegen"
 version = "0.1.0"
-source = "git+https://github.com/technobaboo/gluon#7910659982fbfa2d6e31f8741636f6af6b6836a8"
+source = "git+https://github.com/technobaboo/gluon#bf466c4b5e57923696c554870e6de2886b74e124"
 dependencies = [
  "convert_case",
  "gluon",
@@ -1450,7 +1451,7 @@ dependencies = [
 [[package]]
 name = "gluon-derive"
 version = "0.1.0"
-source = "git+https://github.com/technobaboo/gluon#7910659982fbfa2d6e31f8741636f6af6b6836a8"
+source = "git+https://github.com/technobaboo/gluon#bf466c4b5e57923696c554870e6de2886b74e124"
 dependencies = [
  "quote",
  "syn",
@@ -1459,7 +1460,7 @@ dependencies = [
 [[package]]
 name = "gluon-parser"
 version = "0.1.0"
-source = "git+https://github.com/technobaboo/gluon#7910659982fbfa2d6e31f8741636f6af6b6836a8"
+source = "git+https://github.com/technobaboo/gluon#bf466c4b5e57923696c554870e6de2886b74e124"
 dependencies = [
  "ansi_term",
  "chumsky",
@@ -3070,7 +3071,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-asteroids"
 version = "0.51.0"
-source = "git+https://github.com/StardustXR/asteroids.git?branch=binder#20511d6cfbca44b2143299ba71ba911e0a345a6f"
+source = "git+https://github.com/StardustXR/asteroids.git?branch=binder#7c40be84afdbdb0e52bb786533d9cc15e8d94f2f"
 dependencies = [
  "bumpalo",
  "derive-where",
@@ -3099,7 +3100,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-fusion"
 version = "0.51.1"
-source = "git+https://github.com/StardustXR/core.git?branch=binder#7fa65ccdeeea7c901d36947ab0ef94f373a57373"
+source = "git+https://github.com/StardustXR/core.git?branch=binder#9c320ce297cb5adce6f97b68b9ab229695a2dfb9"
 dependencies = [
  "glam 0.30.9",
  "gluon",
@@ -3148,7 +3149,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-protocol"
 version = "0.51.1"
-source = "git+https://github.com/StardustXR/core.git?branch=binder#7fa65ccdeeea7c901d36947ab0ef94f373a57373"
+source = "git+https://github.com/StardustXR/core.git?branch=binder#9c320ce297cb5adce6f97b68b9ab229695a2dfb9"
 dependencies = [
  "fnv",
  "glam 0.29.3",
@@ -3436,6 +3437,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokio-util"
+version = "0.7.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "494815d09bf52b5548659851081238f0ca39ff638363907596da739561c62c52"
+dependencies = [
+ "bytes",
+ "futures-core",
+ "futures-sink",
+ "pin-project-lite",
+ "tokio",
+]
+
+[[package]]
 name = "toml"
 version = "0.8.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3580,7 +3594,8 @@ dependencies = [
 [[package]]
 name = "tracing-tracy"
 version = "0.11.4"
-source = "git+https://github.com/nagisa/rust_tracy_client?tag=tracy-client-v0.18.4#baec2afb4bbcba18ef6afb6b9ff2b7ba26e577d8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0eaa1852afa96e0fe9e44caa53dc0bd2d9d05e0f2611ce09f97f8677af56e4ba"
 dependencies = [
  "tracing-core",
  "tracing-subscriber",
@@ -3590,7 +3605,8 @@ dependencies = [
 [[package]]
 name = "tracy-client"
 version = "0.18.4"
-source = "git+https://github.com/nagisa/rust_tracy_client?tag=tracy-client-v0.18.4#baec2afb4bbcba18ef6afb6b9ff2b7ba26e577d8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a4f6fc3baeac5d86ab90c772e9e30620fc653bf1864295029921a15ef478e6a5"
 dependencies = [
  "loom",
  "once_cell",
@@ -3600,7 +3616,8 @@ dependencies = [
 [[package]]
 name = "tracy-client-sys"
 version = "0.28.0"
-source = "git+https://github.com/nagisa/rust_tracy_client?tag=tracy-client-v0.18.4#baec2afb4bbcba18ef6afb6b9ff2b7ba26e577d8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c5f7c95348f20c1c913d72157b3c6dee6ea3e30b3d19502c5a7f6d3f160dacbf"
 dependencies = [
  "cc",
  "windows-targets",
@@ -3981,7 +3998,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
