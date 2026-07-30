@@ -16,10 +16,7 @@ use stardust_xr_asteroids::{
 use stardust_xr_fusion::{
 	drawable::MaterialParameter, fields::Shape, project_local_resources, spatial::Transform,
 };
-use std::{
-	f32::consts::{FRAC_PI_2, PI},
-	process,
-};
+use std::f32::consts::{FRAC_PI_2, PI};
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main(flavor = "current_thread")]
@@ -114,7 +111,10 @@ impl Reify for HexagonLauncher {
 				.pointer_mode(PointerMode::Align),
 			)
 			.component(Reparentable::default())
-			.component(Derezzable::new(|_| process::exit(0)))
+			.component(Derezzable::new({
+				let context = context.clone();
+				move |_| context.stop()
+			}))
 			// .component(Tappable::new(Vec3::Z, |state: &mut Self| {
 			// 	state.open = !state.open
 			// }))
