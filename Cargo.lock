@@ -3071,7 +3071,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-asteroids"
 version = "0.51.0"
-source = "git+https://github.com/StardustXR/asteroids.git?branch=binder#275f8617aee8630dd482cf0449a392109b51dd03"
+source = "git+https://github.com/StardustXR/asteroids.git?branch=binder#16a8575d0ee491e97d5ae4e9f0e852f5792b8a9c"
 dependencies = [
  "bumpalo",
  "derive-where",
@@ -3117,7 +3117,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-molecules"
 version = "0.51.0"
-source = "git+https://github.com/StardustXR/molecules.git?branch=binder#29c94bf97f47a8dd43f5d39ede297623b962281e"
+source = "git+https://github.com/StardustXR/molecules.git?branch=binder#83cae5acd391712d7b69f6fc4dfa5901b6f482c3"
 dependencies = [
  "futures",
  "glam 0.29.3",
@@ -3138,7 +3138,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-molecules-protocols"
 version = "0.1.0"
-source = "git+https://github.com/StardustXR/molecules.git?branch=binder#29c94bf97f47a8dd43f5d39ede297623b962281e"
+source = "git+https://github.com/StardustXR/molecules.git?branch=binder#83cae5acd391712d7b69f6fc4dfa5901b6f482c3"
 dependencies = [
  "gluon",
  "gluon-codegen",
