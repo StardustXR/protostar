@@ -1424,7 +1424,7 @@ dependencies = [
 [[package]]
 name = "gluon"
 version = "0.1.0"
-source = "git+https://github.com/technobaboo/gluon#8d072d7393cd038ea6ddd9251858d3776b4c1472"
+source = "git+https://github.com/technobaboo/gluon#adbc0afb10a576b3862b73a7b94ff44b978caf29"
 dependencies = [
  "binderbinder",
  "bitflags 2.10.0",
@@ -1437,7 +1437,7 @@ dependencies = [
 [[package]]
 name = "gluon-codegen"
 version = "0.1.0"
-source = "git+https://github.com/technobaboo/gluon#8d072d7393cd038ea6ddd9251858d3776b4c1472"
+source = "git+https://github.com/technobaboo/gluon#adbc0afb10a576b3862b73a7b94ff44b978caf29"
 dependencies = [
  "convert_case",
  "gluon",
@@ -1451,7 +1451,7 @@ dependencies = [
 [[package]]
 name = "gluon-derive"
 version = "0.1.0"
-source = "git+https://github.com/technobaboo/gluon#8d072d7393cd038ea6ddd9251858d3776b4c1472"
+source = "git+https://github.com/technobaboo/gluon#adbc0afb10a576b3862b73a7b94ff44b978caf29"
 dependencies = [
  "quote",
  "syn",
@@ -1460,7 +1460,7 @@ dependencies = [
 [[package]]
 name = "gluon-parser"
 version = "0.1.0"
-source = "git+https://github.com/technobaboo/gluon#8d072d7393cd038ea6ddd9251858d3776b4c1472"
+source = "git+https://github.com/technobaboo/gluon#adbc0afb10a576b3862b73a7b94ff44b978caf29"
 dependencies = [
  "ansi_term",
  "chumsky",
@@ -3100,7 +3100,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-fusion"
 version = "0.51.1"
-source = "git+https://github.com/StardustXR/core.git?branch=binder#8728d740f6280d6777cfd0f2ec56fc55b3d17b2f"
+source = "git+https://github.com/StardustXR/core.git?branch=binder#b27ddc08ea61b914f393850dbe845cc1b814dbf4"
 dependencies = [
  "glam 0.30.9",
  "gluon",
@@ -3117,13 +3117,14 @@ dependencies = [
 [[package]]
 name = "stardust-xr-molecules"
 version = "0.51.0"
-source = "git+https://github.com/StardustXR/molecules.git?branch=binder#83cae5acd391712d7b69f6fc4dfa5901b6f482c3"
+source = "git+https://github.com/StardustXR/molecules.git?branch=binder#a2a934ac79eb17d2103eec9f834e058f5db54470"
 dependencies = [
  "futures",
  "glam 0.29.3",
  "gluon",
  "lazy_static",
  "lerp",
+ "pion-binder",
  "rustc-hash 2.1.1",
  "serde",
  "shiva-color-rs",
@@ -3138,7 +3139,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-molecules-protocols"
 version = "0.1.0"
-source = "git+https://github.com/StardustXR/molecules.git?branch=binder#83cae5acd391712d7b69f6fc4dfa5901b6f482c3"
+source = "git+https://github.com/StardustXR/molecules.git?branch=binder#a2a934ac79eb17d2103eec9f834e058f5db54470"
 dependencies = [
  "gluon",
  "gluon-codegen",
@@ -3149,7 +3150,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-protocol"
 version = "0.51.1"
-source = "git+https://github.com/StardustXR/core.git?branch=binder#8728d740f6280d6777cfd0f2ec56fc55b3d17b2f"
+source = "git+https://github.com/StardustXR/core.git?branch=binder#b27ddc08ea61b914f393850dbe845cc1b814dbf4"
 dependencies = [
  "fnv",
  "glam 0.29.3",
