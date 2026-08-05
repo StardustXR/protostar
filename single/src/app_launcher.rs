@@ -30,7 +30,7 @@ impl<State: ValidState> CustomElement<State> for AppLauncher<State> {
 			Transform::IDENTITY,
 		)
 		.await?;
-		spatial.set_relative_transform(info.parent_space, Transform::from_translation([0.0; 3]))?;
+		spatial.set_relative_transform(info.parent_space, Transform::from_translation([0.0; 3])).await?;
 		Ok((spatial, spatial_ref, false))
 	}
 
