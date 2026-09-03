@@ -2,7 +2,6 @@ mod hex;
 
 use glam::{Mat4, Quat};
 use hex::Hex;
-use mint::{Quaternion, Vector3};
 use protostar::xdg::{DesktopFile, get_desktop_files};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
@@ -10,11 +9,12 @@ use single::{APP_SIZE, App, BTN_COLOR, BTN_SELECTED_COLOR, MODEL_SCALE};
 use stardust_xr_asteroids::{
 	ClientState, Context, CustomElement, Element, Entity, Migrate, Reify, Tasker, Transformable,
 	client,
-	components::{Derezzable, Grabbable, PointerMode, Reparentable},
+	components::{Containable, Derezzable, Grabbable, PointerMode, Poseable},
 	elements::{Button, Model, ModelPart, Spatial},
 };
 use stardust_xr_fusion::{
 	drawable::MaterialParameter, fields::Shape, project_local_resources, spatial::Transform,
+	types::Posef,
 };
 use std::f32::consts::{FRAC_PI_2, PI};
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
@@ -42,27 +42,16 @@ async fn main() {
 		.unwrap()
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub struct HexagonLauncher {
 	/// if the hexagon launcher is expanded
 	open: bool,
-	pos: Vector3<f32>,
-	rot: Quaternion<f32>,
+	pose: Posef,
 	#[serde(skip)]
 	/// position in the vector is mapped to hex coordinates
 	apps: Vec<App>,
 }
 
-impl Default for HexagonLauncher {
-	fn default() -> Self {
-		Self {
-			open: false,
-			pos: [0.0; 3].into(),
-			rot: Quat::IDENTITY.into(),
-			apps: Vec::new(),
-		}
-	}
-}
 impl Migrate for HexagonLauncher {
 	type Old = Self;
 }
@@ -101,16 +90,23 @@ impl Reify for HexagonLauncher {
 		};
 		// Build UI based on current state
 		Entity::new(field_shape)
-			.pos(self.pos)
-			.rot(self.rot)
+			.pos(self.pose.position)
+			.rot(self.pose.orientation)
 			.component(
-				Grabbable::new(self.pos, self.rot, |state: &mut Self, pos, rot| {
-					state.pos = pos;
-					state.rot = rot;
-				})
+				Grabbable::new(
+					self.pose.position,
+					self.pose.orientation,
+					|state: &mut Self, pos, rot| {
+						state.pose.position = pos;
+						state.pose.orientation = rot;
+					},
+				)
 				.pointer_mode(PointerMode::Align),
 			)
-			.component(Reparentable::default())
+			.component(Containable::default())
+			.component(Poseable::new(|state: &mut Self, pose| {
+				state.pose = pose;
+			}))
 			.component(Derezzable::new({
 				let context = context.clone();
 				move |_| context.stop()

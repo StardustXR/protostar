@@ -1,17 +1,16 @@
 use clap::Parser;
-use glam::Quat;
-use mint::{Quaternion, Vector3};
 use protostar::xdg::DesktopFile;
 use serde::{Deserialize, Serialize};
 use single::{App, BTN_COLOR, BTN_SELECTED_COLOR};
 use stardust_xr_asteroids::{
 	ClientState, Context, CustomElement, Element, Entity, Migrate, Reify, Tasker, Transformable,
 	client,
-	components::{Grabbable, PointerMode, Reparentable},
+	components::{Containable, Grabbable, PointerMode, Poseable},
 	elements::{Button, Model, ModelPart, Spatial},
 };
 use stardust_xr_fusion::{
 	drawable::MaterialParameter, fields::Shape, project_local_resources, spatial::Transform,
+	types::Posef,
 };
 use std::path::PathBuf;
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
@@ -47,24 +46,12 @@ struct Args {
 	apps_directory: PathBuf,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub struct Sirius {
 	visible: bool,
-	pos: Vector3<f32>,
-	rot: Quaternion<f32>,
+	pose: Posef,
 	#[serde(skip)]
 	apps: Vec<App>,
-}
-
-impl Default for Sirius {
-	fn default() -> Self {
-		Self {
-			visible: false,
-			pos: [0.0; 3].into(),
-			rot: Quat::IDENTITY.into(),
-			apps: Vec::new(),
-		}
-	}
 }
 
 impl Migrate for Sirius {
@@ -103,16 +90,23 @@ impl Reify for Sirius {
 		Entity::new(Shape::Box {
 			size: [0.1; 3].into(),
 		})
-		.pos(self.pos)
-		.rot(self.rot)
+		.pos(self.pose.position)
+		.rot(self.pose.orientation)
 		.component(
-			Grabbable::new(self.pos, self.rot, |state: &mut Self, pos, rot| {
-				state.pos = pos;
-				state.rot = rot;
-			})
+			Grabbable::new(
+				self.pose.position,
+				self.pose.orientation,
+				|state: &mut Self, pos, rot| {
+					state.pose.position = pos;
+					state.pose.orientation = rot;
+				},
+			)
 			.pointer_mode(PointerMode::Align),
 		)
-		.component(Reparentable::default())
+		.component(Containable::default())
+		.component(Poseable::new(|state: &mut Self, pose| {
+			state.pose = pose;
+		}))
 		.build()
 		.child(
 			Button::new(|state: &mut Sirius| {
