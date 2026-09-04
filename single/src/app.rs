@@ -1,5 +1,4 @@
 use glam::{Mat4, Quat, Vec3};
-use mint::{Quaternion, Vector3};
 use protostar::{
 	application::Application,
 	xdg::{DesktopFile, Icon, IconType},
@@ -15,7 +14,7 @@ use stardust_xr_fusion::{
 	drawable::{MaterialParameter, TextBounds, TextFit, XAlign, YAlign},
 	fields::Shape,
 	spatial::Transform,
-	types::Resource,
+	types::{Posef, Resource},
 };
 use std::f32::consts::{FRAC_PI_2, PI};
 use std::sync::OnceLock;
@@ -29,8 +28,7 @@ pub struct App {
 	pub app: Application,
 	#[serde(skip)]
 	icon: OnceLock<Icon>,
-	pos: Vector3<f32>,
-	rot: Quaternion<f32>,
+	pose: Posef,
 	#[serde(skip)]
 	launched: AtomicBool,
 }
@@ -40,8 +38,7 @@ impl App {
 		Ok(App {
 			app,
 			icon: OnceLock::default(),
-			pos: [0.0; 3].into(),
-			rot: Quat::IDENTITY.into(),
+			pose: Posef::default(),
 			launched: AtomicBool::new(false),
 		})
 	}
@@ -115,7 +112,7 @@ impl Reify for App {
 			transform: Mat4::from_rotation_x(FRAC_PI_2).into(),
 		};
 
-		let converted = Vec3::from(self.pos);
+		let converted = Vec3::from(self.pose.position);
 		let length = converted.length();
 		let direction = converted.normalize_or_zero();
 
@@ -127,22 +124,19 @@ impl Reify for App {
 		.build()
 		.child(
 			Entity::new(field_shape)
-				.pos(self.pos)
-				.rot(self.rot)
+				.pose(self.pose)
 				.component(
-					Grabbable::new(self.pos, self.rot, move |state: &mut Self, pos, rot| {
-						state.pos = pos;
-						state.rot = rot;
+					Grabbable::new(move |state: &mut Self, pose| {
+						state.pose = pose;
 					})
 					.grab_stop({
 						move |state: &mut Self| {
-							let pos_vec = Vec3::from(state.pos);
+							let pos_vec = Vec3::from(state.pose.position);
 							if pos_vec.length() > ACTIVATION_DISTANCE {
 								// state.app.launch(launch_space)
 								state.launched.store(true, Ordering::Relaxed);
 							} else {
-								state.pos = [0.0; 3].into();
-								state.rot = Quat::IDENTITY.into();
+								state.pose = Posef::default();
 							}
 						}
 					})
@@ -155,8 +149,7 @@ impl Reify for App {
 					AppLauncher::new(&self.app)
 						.done(|state: &mut Self| {
 							state.launched.store(false, Ordering::Relaxed);
-							state.pos = [0.0; 3].into();
-							state.rot = Quat::IDENTITY.into();
+							state.pose = Posef::default();
 						})
 						.build()
 				}))

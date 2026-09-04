@@ -93,14 +93,9 @@ impl Reify for HexagonLauncher {
 			.pos(self.pose.position)
 			.rot(self.pose.orientation)
 			.component(
-				Grabbable::new(
-					self.pose.position,
-					self.pose.orientation,
-					|state: &mut Self, pos, rot| {
-						state.pose.position = pos;
-						state.pose.orientation = rot;
-					},
-				)
+				Grabbable::new(|state: &mut Self, pose| {
+					state.pose = pose;
+				})
 				.pointer_mode(PointerMode::Align),
 			)
 			.component(Containable::default())
