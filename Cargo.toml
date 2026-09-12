@@ -14,12 +14,12 @@ serde = "1.0.219"
 
 [workspace.dependencies.stardust-xr-fusion]
 version = "0.52.0"
-git = "https://github.com/StardustXR/core.git"
+# git = "https://github.com/StardustXR/core.git"
 
 [workspace.dependencies.stardust-xr-molecules]
 version = "0.52.0"
-git = "https://github.com/StardustXR/molecules.git"
+# git = "https://github.com/StardustXR/molecules.git"
 
 [workspace.dependencies.stardust-xr-asteroids]
 version = "0.52.0"
-git = "https://github.com/StardustXR/asteroids.git"
+# git = "https://github.com/StardustXR/asteroids.git"
