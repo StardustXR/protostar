@@ -1207,15 +1207,6 @@ checksum = "e629b9b98ef3dd8afe6ca2bd0f89306cec16d43d907889945bc5d6687f2f13c7"
 
 [[package]]
 name = "glam"
-version = "0.24.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b5418c17512bdf42730f9032c74e1ae39afc408745ebb2acf72fbc4691c17945"
-dependencies = [
- "mint",
-]
-
-[[package]]
-name = "glam"
 version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "151665d9be52f9bb40fc7966565d39666f2d1e69233571b71b87791c7e0528b3"
@@ -1225,29 +1216,21 @@ dependencies = [
 
 [[package]]
 name = "glam"
-version = "0.29.3"
+version = "0.33.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8babf46d4c1c9d92deac9f7be466f76dfc4482b6452fc5024b5e8daf6ffeb3ee"
+checksum = "e762b9b188634fc508d4ec54b62ea3d352c43fd431d18d05d46f559f217f4725"
 dependencies = [
  "mint",
 ]
 
 [[package]]
-name = "glam"
-version = "0.30.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bd47b05dddf0005d850e5644cae7f2b14ac3df487979dbfff3b56f20b1a6ae46"
-dependencies = [
- "mint",
-]
-
-[[package]]
-name = "gluon"
+name = "gluon-ipc"
 version = "0.1.0"
-source = "git+https://github.com/technobaboo/gluon.git?branch=refactor%2Fstrongipc#093df7769434a36ec1d8d1decc4d5671cf30b2cf"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f675d21faef003c3d18cbf743ef85c82aea2956e88b9eb1472c2d6497966a5ed"
 dependencies = [
  "bitflags 2.10.0",
- "gluon-derive",
+ "gluon-ipc-derive",
  "rustix",
  "strong-ipc",
  "thiserror 2.0.18",
@@ -1255,13 +1238,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "gluon-codegen"
+name = "gluon-ipc-codegen"
 version = "0.1.0"
-source = "git+https://github.com/technobaboo/gluon.git?branch=refactor%2Fstrongipc#093df7769434a36ec1d8d1decc4d5671cf30b2cf"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2878da5a9d216cf7dcd2115dac82292dfe8f5831623b32b5e9f6e6ac338b0425"
 dependencies = [
  "convert_case",
- "gluon",
- "gluon-parser",
+ "gluon-ipc",
+ "gluon-ipc-parser",
  "prettyplease",
  "proc-macro2",
  "quote",
@@ -1269,18 +1253,20 @@ dependencies = [
 ]
 
 [[package]]
-name = "gluon-derive"
+name = "gluon-ipc-derive"
 version = "0.1.0"
-source = "git+https://github.com/technobaboo/gluon.git?branch=refactor%2Fstrongipc#093df7769434a36ec1d8d1decc4d5671cf30b2cf"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "358b64f3d11ebc2143f3d403f1675f55f11f7cd56ebc341bd017f808c5d822f2"
 dependencies = [
  "quote",
  "syn",
 ]
 
 [[package]]
-name = "gluon-parser"
+name = "gluon-ipc-parser"
 version = "0.1.0"
-source = "git+https://github.com/technobaboo/gluon.git?branch=refactor%2Fstrongipc#093df7769434a36ec1d8d1decc4d5671cf30b2cf"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "751bfc0ec65269173abbc479af93f4c706cd091e1880fde269afdc31bb5eaa43"
 dependencies = [
  "ansi_term",
  "chumsky",
@@ -1383,7 +1369,7 @@ dependencies = [
  "serde",
  "single",
  "stardust-xr-asteroids",
- "stardust-xr-fusion",
+ "stardust-xr-fusion 0.52.1",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -2035,7 +2021,7 @@ dependencies = [
  "dirs 5.0.1",
  "ez-pixmap",
  "freedesktop-icons-greedy",
- "glam 0.24.2",
+ "glam 0.33.7",
  "image",
  "itertools 0.12.1",
  "lazy_static",
@@ -2048,8 +2034,8 @@ dependencies = [
  "rustc-hash 1.1.0",
  "serde",
  "serde_with",
- "stardust-xr-fusion",
- "stardust-xr-molecules",
+ "stardust-xr-fusion 0.52.1",
+ "stardust-xr-molecules 0.52.0 (git+https://github.com/StardustXR/molecules.git)",
  "tempdir",
  "tokio",
  "toml",
@@ -2678,14 +2664,14 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "color-eyre",
- "glam 0.24.2",
+ "glam 0.33.7",
  "manifest-dir-macros",
  "mint",
  "protostar",
  "serde",
  "stardust-xr-asteroids",
- "stardust-xr-fusion",
- "stardust-xr-molecules",
+ "stardust-xr-fusion 0.52.1",
+ "stardust-xr-molecules 0.52.0 (git+https://github.com/StardustXR/molecules.git)",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -2704,14 +2690,14 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "color-eyre",
- "glam 0.25.0",
+ "glam 0.33.7",
  "manifest-dir-macros",
  "mint",
  "protostar",
  "serde",
  "single",
  "stardust-xr-asteroids",
- "stardust-xr-fusion",
+ "stardust-xr-fusion 0.52.1",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -2756,8 +2742,8 @@ dependencies = [
 
 [[package]]
 name = "stardust-xr-asteroids"
-version = "0.51.0"
-source = "git+https://github.com/StardustXR/asteroids.git?branch=refactor%2Fstrongipc#95d477828d9743dc50c95444a51a28d976f6e5b4"
+version = "0.52.0"
+source = "git+https://github.com/StardustXR/asteroids.git#e7c40881b15f0f6fbed3c288a6df7dcfd90b76e6"
 dependencies = [
  "bumpalo",
  "derive-where",
@@ -2765,8 +2751,8 @@ dependencies = [
  "directories 6.0.0",
  "futures",
  "futures-util",
- "glam 0.29.3",
- "gluon",
+ "glam 0.33.7",
+ "gluon-ipc",
  "inotify",
  "map-range",
  "mint",
@@ -2774,8 +2760,8 @@ dependencies = [
  "ron",
  "rustc-hash 2.1.1",
  "serde",
- "stardust-xr-fusion",
- "stardust-xr-molecules",
+ "stardust-xr-fusion 0.52.0",
+ "stardust-xr-molecules 0.52.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio",
  "tracing",
  "tracy-client",
@@ -2784,14 +2770,31 @@ dependencies = [
 
 [[package]]
 name = "stardust-xr-fusion"
-version = "0.51.1"
-source = "git+https://github.com/StardustXR/core.git?branch=refactor%2Fstrongipc#a6ffc99818759f860f51aa10a9c7b350c79a6402"
+version = "0.52.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1897d300c9c5f213f61ea03b3d06fc3b06048cf8116b4a858f0dea19d2eb76b9"
 dependencies = [
- "glam 0.30.9",
- "gluon",
+ "glam 0.33.7",
+ "gluon-ipc",
  "parking_lot",
  "rustix",
- "stardust-xr-protocol",
+ "stardust-xr-protocol 0.52.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "xdg 3.0.0",
+]
+
+[[package]]
+name = "stardust-xr-fusion"
+version = "0.52.1"
+source = "git+https://github.com/StardustXR/core.git#6d666ab6f9035975b8a5e02ae566014441c92db8"
+dependencies = [
+ "glam 0.33.7",
+ "gluon-ipc",
+ "parking_lot",
+ "rustix",
+ "stardust-xr-protocol 0.52.1 (git+https://github.com/StardustXR/core.git)",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
@@ -2800,19 +2803,41 @@ dependencies = [
 
 [[package]]
 name = "stardust-xr-molecules"
-version = "0.51.0"
-source = "git+https://github.com/StardustXR/molecules.git?branch=refactor%2Fstrongipc#8083ba072057ee820d780164d4010a595b74ac3d"
+version = "0.52.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4bea71366497ecc641035d37058c59db133225c9a11936424ef4cac9e50b4a4a"
 dependencies = [
  "futures",
- "glam 0.30.9",
- "gluon",
+ "glam 0.33.7",
+ "gluon-ipc",
  "lazy_static",
  "lerp",
  "rustc-hash 2.1.1",
  "serde",
  "shiva-color-rs",
- "stardust-xr-fusion",
- "stardust-xr-molecules-protocols",
+ "stardust-xr-fusion 0.52.0",
+ "stardust-xr-molecules-protocols 0.52.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tokio",
+ "tokio-stream",
+ "tracing",
+ "zbus",
+]
+
+[[package]]
+name = "stardust-xr-molecules"
+version = "0.52.0"
+source = "git+https://github.com/StardustXR/molecules.git#e3b7fa36936b5b82d6a1b33f79afc2a29a469c7c"
+dependencies = [
+ "futures",
+ "glam 0.33.7",
+ "gluon-ipc",
+ "lazy_static",
+ "lerp",
+ "rustc-hash 2.1.1",
+ "serde",
+ "shiva-color-rs",
+ "stardust-xr-fusion 0.52.0",
+ "stardust-xr-molecules-protocols 0.52.0 (git+https://github.com/StardustXR/molecules.git)",
  "tokio",
  "tokio-stream",
  "tracing",
@@ -2821,28 +2846,61 @@ dependencies = [
 
 [[package]]
 name = "stardust-xr-molecules-protocols"
-version = "0.1.0"
-source = "git+https://github.com/StardustXR/molecules.git?branch=refactor%2Fstrongipc#8083ba072057ee820d780164d4010a595b74ac3d"
+version = "0.52.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "56ff868f2e22706c25d80b87e3219b088462128f3332fad117fcb09f7399d906"
 dependencies = [
- "gluon",
- "gluon-codegen",
- "stardust-xr-protocol",
+ "gluon-ipc",
+ "gluon-ipc-codegen",
+ "stardust-xr-protocol 0.52.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tracing",
+]
+
+[[package]]
+name = "stardust-xr-molecules-protocols"
+version = "0.52.0"
+source = "git+https://github.com/StardustXR/molecules.git#e3b7fa36936b5b82d6a1b33f79afc2a29a469c7c"
+dependencies = [
+ "gluon-ipc",
+ "gluon-ipc-codegen",
+ "stardust-xr-protocol 0.52.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "tracing",
 ]
 
 [[package]]
 name = "stardust-xr-protocol"
-version = "0.51.1"
-source = "git+https://github.com/StardustXR/core.git?branch=refactor%2Fstrongipc#a6ffc99818759f860f51aa10a9c7b350c79a6402"
+version = "0.52.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "097926accefdaa7ab195978044b38b463758e948dabe4b394705aa7df102f61c"
 dependencies = [
  "fnv",
- "glam 0.29.3",
- "gluon",
- "gluon-codegen",
+ "glam 0.33.7",
+ "gluon-ipc",
+ "gluon-ipc-codegen",
  "mint",
  "prettyplease",
  "rustix",
  "serde",
+ "shiva-color-rs",
+ "syn",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "xdg 3.0.0",
+]
+
+[[package]]
+name = "stardust-xr-protocol"
+version = "0.52.1"
+source = "git+https://github.com/StardustXR/core.git#6d666ab6f9035975b8a5e02ae566014441c92db8"
+dependencies = [
+ "fnv",
+ "glam 0.33.7",
+ "gluon-ipc",
+ "gluon-ipc-codegen",
+ "mint",
+ "prettyplease",
+ "rustix",
  "shiva-color-rs",
  "syn",
  "thiserror 2.0.18",
@@ -2869,7 +2927,8 @@ dependencies = [
 [[package]]
 name = "strong-ipc"
 version = "0.1.0"
-source = "git+https://github.com/technobaboo/strong-ipc#42af1b22dc3944c64721b98d8afbd1f0ba3abb69"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "df327b218ac884d02e54e500faaa1ecfd0b4678560874f70de801903c2f2f595"
 dependencies = [
  "dashmap",
  "rustix",
@@ -3592,7 +3651,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

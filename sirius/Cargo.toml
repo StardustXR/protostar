@@ -1,6 +1,6 @@
 [package]
 name = "sirius"
-version = "0.1.0"
+version = "0.52.0"
 edition = "2024"
 
 [features]
@@ -11,7 +11,7 @@ protostar = { path = "../protostar" }
 color-eyre = "0.6.2"
 clap = "4.4.6"
 manifest-dir-macros = "0.1.18"
-glam = { version = "0.25.0", features = ["mint"] }
+glam = { version = "0.33.7", features = ["mint"] }
 mint = "0.5.9"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 tracing-tracy = { version = "0.11.4", optional = true }
