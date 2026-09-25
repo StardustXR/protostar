@@ -13,8 +13,14 @@ use stardust_xr_asteroids::{
 	elements::{Button, Model, ModelPart, Spatial},
 };
 use stardust_xr_fusion::{
-	drawable::MaterialParameter, fields::Shape, project_local_resources, spatial::Transform,
-	types::Posef,
+	drawable::MaterialParameter,
+	fields::Shape,
+	project_local_resources,
+	spatial::Transform,
+	types::{
+		Posef,
+		color::{Deg, Hsv, ToHsv, ToRgba, color_space::Srgb},
+	},
 };
 use std::f32::consts::{FRAC_PI_2, PI};
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
@@ -48,8 +54,10 @@ pub struct HexagonLauncher {
 	open: bool,
 	pose: Posef,
 	#[serde(skip)]
-	/// position in the vector is mapped to hex coordinates
 	apps: Vec<App>,
+	/// where each app sits, same order as `apps`
+	#[serde(skip)]
+	hexes: Vec<Hex>,
 }
 
 impl Migrate for HexagonLauncher {
@@ -73,9 +81,41 @@ impl ClientState for HexagonLauncher {
 			app.load_icon();
 		});
 
-		// Sort by name
-		self.apps
-			.sort_by_key(|app| app.app.name().unwrap_or_default().to_lowercase());
+		// five triangles out from the center split the colorful icons into runs of similar hues,
+		// the sixth is the black one for everything grey, alphabetical going outwards in each
+		let hue = |app: &App| app.color().map_or(f32::INFINITY, |c| c.to_hsv::<f32>().h.0);
+		self.apps.sort_by(|a, b| hue(a).total_cmp(&hue(b)));
+		let colorful = self.apps.iter().filter(|a| a.color().is_some()).count();
+		let per_wedge = colorful.div_ceil(5).max(1);
+		let wedges: Vec<usize> = (0..self.apps.len())
+			.map(|i| if i < colorful { i / per_wedge } else { 5 })
+			.collect();
+		let mut start = 0;
+		for side in 0..6 {
+			let len = wedges[start..].iter().take_while(|&&w| w == side).count();
+			let section = &mut self.apps[start..start + len];
+			section.sort_by_key(|app| app.app.name().unwrap_or_default().to_lowercase());
+			// one shared color per section, the middle of the hue range it covers, so the
+			// triangles read as clean areas instead of muddy averages
+			let hues: Vec<f32> = section
+				.iter()
+				.filter_map(App::color)
+				.map(|c| c.to_hsv::<f32>().h.0)
+				.collect();
+			let lo = hues.iter().copied().reduce(f32::min);
+			let hi = hues.iter().copied().reduce(f32::max);
+			// muted rather than fully saturated, so the icons stay readable on top
+			let tint = lo.zip(hi).map(|(lo, hi)| {
+				Hsv::<f32, Srgb>::new(Deg((lo + hi) / 2.0), 0.65, 0.8)
+					.to_rgba::<f32>()
+					.to_linear()
+			});
+			for app in section {
+				app.set_tint(tint);
+			}
+			self.hexes.extend((0..len).map(|n| Hex::wedge(side, n)));
+			start += len;
+		}
 	}
 }
 impl Reify for HexagonLauncher {
@@ -141,7 +181,7 @@ impl Reify for HexagonLauncher {
 					.then(|| {
 						self.apps.iter().enumerate().map(|(i, app)| {
 							Spatial::default()
-								.pos(Hex::spiral(i + 1).get_coords())
+								.pos(self.hexes[i].get_coords())
 								.build()
 								.child(app.reify_substate(
 									context,

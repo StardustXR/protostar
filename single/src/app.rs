@@ -14,20 +14,28 @@ use stardust_xr_fusion::{
 	drawable::{MaterialParameter, TextBounds, TextFit, XAlign, YAlign},
 	fields::Shape,
 	spatial::Transform,
-	types::{Posef, Resource},
+	types::{
+		Color, Posef, Resource,
+		color::{Rgb, Rgba, rgba_linear},
+	},
 };
 use std::f32::consts::{FRAC_PI_2, PI};
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::app_launcher::AppLauncher;
-use crate::{ACTIVATION_DISTANCE, APP_SIZE, DEFAULT_HEX_COLOR, MODEL_SCALE};
+use crate::{ACTIVATION_DISTANCE, APP_SIZE, GREY_HEX_COLOR, MODEL_SCALE};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct App {
 	pub app: Application,
 	#[serde(skip)]
 	icon: OnceLock<Icon>,
+	#[serde(skip)]
+	color: OnceLock<Option<Rgb<f32>>>,
+	/// overrides the icon's own color for the hex, like a whole section sharing one
+	#[serde(skip)]
+	tint: Option<Color>,
 	pose: Posef,
 	#[serde(skip)]
 	launched: AtomicBool,
@@ -38,6 +46,8 @@ impl App {
 		Ok(App {
 			app,
 			icon: OnceLock::default(),
+			color: OnceLock::default(),
+			tint: None,
 			pose: Posef::default(),
 			launched: AtomicBool::new(false),
 		})
@@ -52,6 +62,16 @@ impl App {
 		{
 			let _ = self.icon.set(icon);
 		}
+		let _ = self
+			.color
+			.set(self.icon.get().and_then(Icon::dominant_color));
+	}
+	/// the icon's dominant color in srgb, none until the icon loads or if it's grey
+	pub fn color(&self) -> Option<Rgb<f32>> {
+		self.color.get().copied().flatten()
+	}
+	pub fn set_tint(&mut self, tint: Option<Color>) {
+		self.tint = tint;
 	}
 
 	// Helper functions for creating app components
@@ -70,12 +90,21 @@ impl App {
 						Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
 						[APP_SIZE / 2.0; 3],
 					))
-					.part(ModelPart::new("Hex").mat_param(
-						"color",
-						MaterialParameter::Color {
-							value: DEFAULT_HEX_COLOR,
-						},
-					));
+					.part(
+						ModelPart::new("Hex").mat_param(
+							"color",
+							MaterialParameter::Color {
+								value: self
+									.tint
+									.or_else(|| {
+										self.color().map(|c| Rgba { c, a: 1.0 }.to_linear())
+									})
+									.map_or(GREY_HEX_COLOR, |t| {
+										rgba_linear!(t.c.r * 0.5, t.c.g * 0.5, t.c.b * 0.5, 1.0)
+									}),
+							},
+						),
+					);
 
 				match other {
 					Some((IconType::Png, icon)) => model.part(

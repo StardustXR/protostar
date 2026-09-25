@@ -4,7 +4,7 @@ use std::ops::Add;
 
 use single::{APP_SIZE, PADDING};
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Hex {
 	q: isize,
 	r: isize,
@@ -76,6 +76,23 @@ impl Hex {
 
 		hex
 	}
+
+	/// the nth cell of one of the six triangles out from the center, filling ring by ring
+	/// along the same edge the spiral walks, so n = 0 is right next to the center
+	pub fn wedge(side: usize, n: usize) -> Self {
+		let (mut ring, mut first) = (1, 0);
+		while first + ring <= n {
+			first += ring;
+			ring += 1;
+		}
+		let radius = ring as isize;
+		let start = HEX_DIRECTION_VECTORS[..side]
+			.iter()
+			.fold(HEX_DIRECTION_VECTORS[4].scale(radius), |hex, dir| {
+				hex + dir.scale(radius)
+			});
+		start + HEX_DIRECTION_VECTORS[side].scale((n - first) as isize)
+	}
 }
 impl Add for Hex {
 	type Output = Hex;
@@ -83,4 +100,17 @@ impl Add for Hex {
 	fn add(self, rhs: Self) -> Self::Output {
 		Hex::new(self.q + rhs.q, self.r + rhs.r, self.s + rhs.s)
 	}
+}
+
+#[test]
+fn full_wedges_tile_the_spiral() {
+	use std::collections::HashSet;
+	let rings = 5;
+	let per_wedge = rings * (rings + 1) / 2;
+	let wedges: HashSet<Hex> = (0..6)
+		.flat_map(|side| (0..per_wedge).map(move |n| Hex::wedge(side, n)))
+		.collect();
+	let spiral: HashSet<Hex> = (1..=6 * per_wedge).map(Hex::spiral).collect();
+	assert_eq!(wedges.len(), 6 * per_wedge);
+	assert_eq!(wedges, spiral);
 }

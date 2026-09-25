@@ -11,5 +11,7 @@ pub const MODEL_SCALE: f32 = 0.03;
 pub const ACTIVATION_DISTANCE: f32 = 0.05;
 
 pub const DEFAULT_HEX_COLOR: Rgba<f32, LinearRgb> = rgba_linear!(0.0395, 0.8848, 0.3148, 1.0);
+/// for apps whose icon has no color of its own, or no icon at all
+pub const GREY_HEX_COLOR: Rgba<f32, LinearRgb> = rgba_linear!(0.01, 0.01, 0.01, 1.0);
 pub const BTN_SELECTED_COLOR: Rgba<f32, LinearRgb> = rgba_linear!(0.0, 1.0, 0.0, 1.0);
 pub const BTN_COLOR: Rgba<f32, LinearRgb> = rgba_linear!(1.0, 1.0, 0.0, 1.0);

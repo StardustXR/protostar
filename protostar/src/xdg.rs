@@ -8,9 +8,11 @@ use resvg::tiny_skia::{Pixmap, Transform};
 use resvg::usvg::{FitTo, Tree};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
+use stardust_xr_fusion::types::color::{Rgb, ToHsv};
 use std::collections::HashMap;
 use std::ffi::OsString;
 use std::fs::create_dir_all;
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::{BufRead, BufReader, ErrorKind};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -313,6 +315,30 @@ impl Icon {
 		})
 	}
 
+	/// the color that stands out most in the icon, as srgb, none for grey or colorless icons
+	pub fn dominant_color(&self) -> Option<Rgb<f32>> {
+		if self.icon_type != IconType::Png {
+			return None;
+		}
+		let meta = fs::metadata(&self.path).ok()?;
+		let mut hasher = DefaultHasher::new();
+		(&self.path, meta.len(), meta.modified().ok()).hash(&mut hasher);
+		let cache = get_image_cache_dir().join(format!("{:016x}.color", hasher.finish()));
+		if let Ok(cached) = fs::read_to_string(&cache) {
+			let c: Vec<f32> = cached
+				.split_whitespace()
+				.filter_map(|v| v.parse().ok())
+				.collect();
+			return (c.len() == 3).then(|| Rgb::new(c[0], c[1], c[2]));
+		}
+		let color = dominant_color(&self.path);
+		let _ = fs::write(
+			&cache,
+			color.map_or("none".to_string(), |c| format!("{} {} {}", c.r, c.g, c.b)),
+		);
+		color
+	}
+
 	pub fn cached_process(self, size: u16) -> Result<Icon, std::io::Error> {
 		let image_name = self
 			.path
@@ -360,6 +386,42 @@ fn test_get_icon_path() {
 
 	// Assert that the get_icon_path() function returns the expected result
 	assert!(icon.is_some());
+}
+
+// a hue histogram over the colorful pixels, weighted by how vivid they are, so outlines and
+// grey bodies don't win over the actual brand color
+fn dominant_color(path: &Path) -> Option<Rgb<f32>> {
+	let img = image::open(path).ok()?.to_rgba8();
+	let mut buckets = [(0.0_f32, [0.0_f32; 3]); 12];
+	let mut opaque = 0.0;
+	for p in img.pixels() {
+		let [r, g, b, a] = p.0.map(|c| c as f32 / 255.0);
+		if a < 0.5 {
+			continue;
+		}
+		opaque += 1.0;
+		let max = r.max(g).max(b);
+		let sat = if max > 0.0 {
+			(max - r.min(g).min(b)) / max
+		} else {
+			0.0
+		};
+		if sat < 0.25 || max < 0.15 {
+			continue;
+		}
+		let w = sat * max;
+		let hue = Rgb::<f32>::new(r, g, b).to_hsv::<f32>().h.0;
+		let bucket = &mut buckets[(hue / 30.0) as usize % 12];
+		bucket.0 += w;
+		bucket.1 = [
+			bucket.1[0] + r * w,
+			bucket.1[1] + g * w,
+			bucket.1[2] + b * w,
+		];
+	}
+	let (w, sum) = buckets.into_iter().max_by(|a, b| a.0.total_cmp(&b.0))?;
+	// a few colored pixels on a grey icon shouldn't tint the whole tile
+	(w > opaque * 0.05).then(|| Rgb::new(sum[0] / w, sum[1] / w, sum[2] / w))
 }
 
 pub fn get_image_cache_dir() -> PathBuf {
