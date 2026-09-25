@@ -145,11 +145,16 @@ impl Reify for App {
 		let length = converted.length();
 		let direction = converted.normalize_or_zero();
 
-		Lines::new([line_from_points(vec![
-			Vec3::from([0.0; 3]),
-			(length < ACTIVATION_DISTANCE) as u32 as f32
-				* direction * length.clamp(0.0, ACTIVATION_DISTANCE),
-		])])
+		let draw_line = length < ACTIVATION_DISTANCE && length > f32::EPSILON;
+
+		Lines::new([line_from_points(if draw_line {
+			vec![
+				Vec3::from([0.0; 3]),
+				direction * length.clamp(0.0, ACTIVATION_DISTANCE),
+			]
+		} else {
+			vec![]
+		})])
 		.build()
 		.child(
 			Entity::new(field_shape)
