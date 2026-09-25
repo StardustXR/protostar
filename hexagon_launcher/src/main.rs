@@ -75,7 +75,7 @@ impl ClientState for HexagonLauncher {
 
 		// Sort by name
 		self.apps
-			.sort_by_key(|app| app.app.name().unwrap_or_default().to_string());
+			.sort_by_key(|app| app.app.name().unwrap_or_default().to_lowercase());
 	}
 }
 impl Reify for HexagonLauncher {
