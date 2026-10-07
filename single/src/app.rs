@@ -131,7 +131,12 @@ impl App {
 }
 impl Reify for App {
 	#[tracing::instrument(skip_all)]
-	fn reify(&self, _context: &Context, _tasks: impl Tasker<Self>) -> impl Element<Self> {
+	fn reify(
+		&self,
+		_context: &Context,
+		_tasks: impl Tasker<Self>,
+		_props: (),
+	) -> impl Element<Self> {
 		// The field shape for the grabbable
 		let field_shape = Shape::Transform {
 			shape: Box::new(Shape::Cylinder {

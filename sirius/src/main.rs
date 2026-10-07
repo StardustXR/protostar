@@ -86,7 +86,7 @@ impl ClientState for Sirius {
 	}
 }
 impl Reify for Sirius {
-	fn reify(&self, context: &Context, tasks: impl Tasker<Self>) -> impl Element<Self> {
+	fn reify(&self, context: &Context, tasks: impl Tasker<Self>, _: ()) -> impl Element<Self> {
 		Entity::new(Shape::Box {
 			size: [0.1; 3].into(),
 		})
@@ -142,6 +142,7 @@ impl Reify for Sirius {
 								app.reify_substate(
 									context,
 									tasks.clone(),
+									(),
 									move |state: &mut Sirius| state.apps.get_mut(pos),
 								),
 							),

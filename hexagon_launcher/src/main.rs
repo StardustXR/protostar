@@ -120,7 +120,7 @@ impl ClientState for HexagonLauncher {
 }
 impl Reify for HexagonLauncher {
 	#[tracing::instrument(skip_all)]
-	fn reify(&self, context: &Context, tasks: impl Tasker<Self>) -> impl Element<Self> {
+	fn reify(&self, context: &Context, tasks: impl Tasker<Self>, _: ()) -> impl Element<Self> {
 		let field_shape = Shape::Transform {
 			shape: Box::new(Shape::Cylinder {
 				radius: APP_SIZE / 2.0,
@@ -186,6 +186,7 @@ impl Reify for HexagonLauncher {
 								.child(app.reify_substate(
 									context,
 									tasks.clone(),
+                                    (),
 									move |state: &mut HexagonLauncher| state.apps.get_mut(i),
 								))
 						})
