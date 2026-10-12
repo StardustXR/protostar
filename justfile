@@ -38,14 +38,22 @@ run *args:
 install:
     {{ just }} rootdir="{{ rootdir }}" prefix="{{ prefix }}" hexagon_launcher/install
 
+# Installs data files
+install-data:
+    {{ just }} rootdir="{{ rootdir }}" prefix="{{ prefix }}" hexagon_launcher/install-data
+
 # Uninstalls installed files
 uninstall:
     {{ just }} rootdir="{{ rootdir }}" prefix="{{ prefix }}" hexagon_launcher/uninstall
 
+# Uninstalls installed data files
+uninstall-data:
+    {{ just }} rootdir="{{ rootdir }}" prefix="{{ prefix }}" hexagon_launcher/uninstall-data
+
 # Vendor dependencies locally
 vendor:
     mkdir -p .cargo
-    cargo vendor --sync Cargo.toml --sync config/Cargo.toml | head -n -1 > .cargo/config.toml
+    cargo vendor | head -n -1 > .cargo/config.toml
     echo 'directory = "vendor"' >> .cargo/config.toml
     tar pcf vendor.tar vendor
     rm -rf vendor
