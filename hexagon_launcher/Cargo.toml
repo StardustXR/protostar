@@ -1,6 +1,6 @@
 [package]
 name = "hexagon_launcher"
-version = "0.52.0"
+version.workspace = true
 edition = "2024"
 
 [features]

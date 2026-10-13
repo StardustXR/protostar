@@ -8,6 +8,12 @@ members = [
 	"sirius",
 ]
 
+metadata.crane.name = "protostar"
+
+# this should only be applied to clients, not libraries (unless they want to follow the main stardust version)
+[workspace.package]
+version = "0.53.0-rc.1"
+
 [workspace.dependencies]
 tokio = { version = "1.47.1", features = ["rt", "tokio-macros", "sync"] }
 serde = "1.0.219"
