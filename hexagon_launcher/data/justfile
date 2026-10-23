@@ -4,10 +4,17 @@ desktop-src := appid + '.desktop'
 desktop-dst := install-dir / 'applications' / desktop-src
 metainfo-src := appid + '.metainfo.xml'
 metainfo-dst := install-dir / 'metainfo' / metainfo-src
+res-src := appid
+res-dst := install-dir / appid
 
 install:
     install -Dm0644 {{ desktop-src }} {{ desktop-dst }}
     install -Dm0644 {{ metainfo-src }} {{ metainfo-dst }}
+    mkdir -p {{ res-dst }}
+    install -Dm0644 {{ res-src }}/* {{ res-dst }}
+
 
 uninstall:
-    rm -r {{ desktop-dst }} {{ metainfo-dst }}
+    rm -r {{ desktop-dst }}
+    rm -r {{ metainfo-dst }}
+    rm -r {{ res-dst }}

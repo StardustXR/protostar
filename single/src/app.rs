@@ -85,7 +85,7 @@ impl App {
 				))
 				.build(),
 			other => {
-				let model = Model::namespaced("protostar", "hexagon/hexagon")
+				let model = Model::namespaced("org.stardustxr.HexagonLauncher", "hexagon")
 					.transform(Transform::from_rotation_scale(
 						Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
 						[APP_SIZE / 2.0; 3],

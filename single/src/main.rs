@@ -22,7 +22,7 @@ async fn main() {
 		.compact()
 		.with_env_filter(EnvFilter::from_env("LOG_LEVEL"))
 		.init();
-	client::run::<Single>(&[&project_local_resources!("../res")])
+	client::run::<Single>(&[&project_local_resources!("../hexagon_launcher/data")])
 		.await
 		.unwrap()
 }

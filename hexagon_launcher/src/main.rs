@@ -43,7 +43,7 @@ async fn main() {
 		.with_filter(EnvFilter::from_default_env());
 	registry.with(log_layer).init();
 
-	client::run::<HexagonLauncher>(&[&project_local_resources!("../res")])
+	client::run::<HexagonLauncher>(&[&project_local_resources!("data")])
 		.await
 		.unwrap()
 }
@@ -65,7 +65,7 @@ impl Migrate for HexagonLauncher {
 }
 
 impl ClientState for HexagonLauncher {
-	const APP_ID: &'static str = "org.protostar.hexagon_launcher";
+	const APP_ID: &'static str = "org.stardustxr.HexagonLauncher";
 
 	fn initial_state_update(&mut self) {
 		let current_desktop = std::env::var("XDG_CURRENT_DESKTOP").unwrap_or_default();
