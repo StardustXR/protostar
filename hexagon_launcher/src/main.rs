@@ -163,7 +163,7 @@ impl Reify for HexagonLauncher {
 				.build(),
 			)
 			.child(
-				Model::namespaced("protostar", "hexagon/hexagon")
+				Model::namespaced(Self::APP_ID, "hexagon")
 					.transform(Transform::from_rotation_scale(
 						Quat::from_rotation_x(PI / 2.0) * Quat::from_rotation_y(PI),
 						[MODEL_SCALE; 3],
