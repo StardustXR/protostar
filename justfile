@@ -1,6 +1,9 @@
 just := just_executable()
 rootdir := ''
 prefix := '/usr'
+base-dir := absolute_path(clean(rootdir / prefix))
+export INSTALL_DIR := base-dir / 'share'
+export STARDUST_RES_PREFIXES := prefix / 'share'
 
 # Default recipe which runs `just build-release`
 default: build-release
