@@ -1,5 +1,5 @@
 use crate::xdg::{DesktopFile, Icon, IconType};
-use regex::Regex;
+use freedesktop_desktop_entry::ExecError;
 use serde::{Deserialize, Serialize};
 use stardust_xr_fusion::{
 	Error as NodeError,
@@ -7,7 +7,7 @@ use stardust_xr_fusion::{
 	spatial::SpatialRef,
 	types::ResourceLoadError,
 };
-use std::{borrow::Cow, collections::HashMap, env};
+use std::{collections::HashMap, env};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Application {
@@ -15,18 +15,21 @@ pub struct Application {
 }
 impl Application {
 	pub fn create(desktop_file: DesktopFile) -> Result<Self, NodeError> {
-		if desktop_file.no_display {
+		if desktop_file.no_display() {
 			return Err(ResourceLoadError::NotFound.into());
 		}
 
 		Ok(Application { desktop_file })
 	}
 
-	pub fn name(&self) -> Option<&str> {
-		self.desktop_file.name.as_deref()
+	// TODO: maybe cache this and return a &str again?
+	pub fn name(&self) -> Option<String> {
+		// TODO: optimize and remove this
+		let locales = freedesktop_desktop_entry::get_languages_from_env();
+		self.desktop_file.name(&locales).map(|v| v.to_string())
 	}
-	pub fn categories(&self) -> &[String] {
-		self.desktop_file.categories.as_slice()
+	pub fn categories(&self) -> Vec<&str> {
+		self.desktop_file.categories().unwrap_or_default()
 	}
 
 	pub fn icon(&self, preferred_px_size: u16, prefer_3d: bool) -> Option<Icon> {
@@ -46,14 +49,10 @@ impl Application {
 		&self,
 		client: &Client<impl ClientHandler>,
 		launch_space: &SpatialRef,
-	) -> Result<(), NodeError> {
+	) -> Result<(), ExecError> {
 		let launch_space = launch_space.clone();
 
-		let executable = self
-			.desktop_file
-			.command
-			.clone()
-			.ok_or(ResourceLoadError::NotFound)?;
+		let exec = self.desktop_file.parse_exec()?;
 		let server_interface = client.server().clone();
 		tokio::task::spawn(async move {
 			let Ok(Ok(startup_token)) = server_interface
@@ -62,9 +61,6 @@ impl Application {
 			else {
 				return;
 			};
-			// Strip/ignore field codes https://specifications.freedesktop.org/desktop-entry-spec/latest/ar01s07.html
-			let re = Regex::new(r"%[fFuUdDnNickvm]").unwrap();
-			let exec: Cow<'_, str> = re.replace_all(&executable, "");
 
 			let mut connection_env = HashMap::new();
 			connection_env.insert("STARDUST_STARTUP_TOKEN".to_string(), startup_token);
@@ -77,7 +73,7 @@ impl Application {
 			if let Ok(v) = env::var("XDG_CURRENT_DESKTOP") {
 				connection_env.insert("XDG_CURRENT_DESKTOP".to_string(), v);
 			}
-			protostar_launcher::launch(exec, connection_env).await
+			protostar_launcher::launch(exec.iter().map(|v| v.as_str()), connection_env).await
 		});
 
 		Ok(())

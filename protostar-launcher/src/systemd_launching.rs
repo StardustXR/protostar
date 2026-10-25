@@ -1,4 +1,4 @@
-use std::{borrow::Cow, path::PathBuf};
+use std::path::PathBuf;
 
 use which::which;
 use zbus::zvariant::{OwnedValue, Type, Value};
@@ -14,7 +14,7 @@ struct Exec {
 
 pub async fn launch_systemd(
 	manager: &ManagerProxy<'_>,
-	exec: Cow<'_, str>,
+	exec: impl IntoIterator<Item = &str>,
 	connection_env: impl IntoIterator<Item = (String, String)>,
 ) {
 	fn p(prop: &str, val: &str) -> (String, zbus::zvariant::OwnedValue) {
@@ -25,7 +25,7 @@ pub async fn launch_systemd(
 				.unwrap(),
 		)
 	}
-	let mut args = exec.split(' ').map(|v| v.to_string()).collect::<Vec<_>>();
+	let mut args = exec.into_iter().map(|v| v.to_string()).collect::<Vec<_>>();
 	let mut path = PathBuf::from(args[0].clone());
 	if path.is_relative()
 		&& let Ok(bin_path) = which(&path)

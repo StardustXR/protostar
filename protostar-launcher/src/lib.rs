@@ -1,7 +1,6 @@
 #[cfg(feature = "systemd_launching")]
 mod systemd_launching;
 use std::{
-	borrow::Cow,
 	os::unix::process::CommandExt as _,
 	process::{Command, Stdio, exit},
 };
@@ -9,7 +8,7 @@ use std::{
 use nix::unistd::{ForkResult, setsid};
 
 pub async fn launch(
-	exec: Cow<'_, str>,
+	exec: impl IntoIterator<Item = &str>,
 	connection_env: impl IntoIterator<Item = (String, String)> + Send + Sync + 'static,
 ) {
 	#[cfg(feature = "systemd_launching")]
@@ -23,23 +22,24 @@ pub async fn launch(
 		if let Some(systemd) = systemd_proxy {
 			crate::systemd_launching::launch_systemd(&systemd, exec, connection_env).await;
 		} else {
-			double_fork_launch(exec, connection_env);
+			double_fork_launch(exec, connection_env).await;
 		}
 	};
 	#[cfg(not(feature = "systemd_launching"))]
 	{
-		double_fork_launch(exec, connection_env);
+		double_fork_launch(exec, connection_env).await;
 	}
 }
-fn double_fork_launch(
-	exec: Cow<'_, str>,
+async fn double_fork_launch(
+	exec: impl IntoIterator<Item = &str>,
 	connection_env: impl IntoIterator<Item = (String, String)>,
 ) {
+	let mut exec = exec.into_iter();
+	let Some(bin) = exec.next() else { return };
 	unsafe {
 		if let ForkResult::Child = nix::unistd::fork().expect("fork died???? how?????") {
-			let _ = Command::new("sh")
-				.arg("-c")
-				.arg(exec.to_string())
+			let _ = Command::new(bin)
+				.args(exec)
 				.stdin(Stdio::null())
 				.stdout(Stdio::null())
 				.stderr(Stdio::null())

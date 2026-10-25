@@ -72,8 +72,12 @@ impl ClientState for HexagonLauncher {
 		// Load desktop files
 		self.apps = get_desktop_files()
 			.filter_map(|d| DesktopFile::parse(d).ok())
-			.filter(|d| !d.no_display)
-			.filter(|d| d.only_show_in.is_empty() || d.only_show_in.contains(&current_desktop))
+			.filter(|d| !d.no_display())
+			.filter(|d| {
+				d.only_show_in().is_none()
+					|| d.only_show_in()
+						.is_some_and(|v| v.contains(&current_desktop.as_str()))
+			})
 			.filter_map(|d| App::new(d).ok())
 			.collect();
 
@@ -186,7 +190,7 @@ impl Reify for HexagonLauncher {
 								.child(app.reify_substate(
 									context,
 									tasks.clone(),
-                                    (),
+									(),
 									move |state: &mut HexagonLauncher| state.apps.get_mut(i),
 								))
 						})

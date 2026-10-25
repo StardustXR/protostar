@@ -1,8 +1,8 @@
 use color_eyre::eyre::Result;
+use freedesktop_desktop_entry::{DecodeError, DesktopEntry};
 use freedesktop_icons_greedy::lookup;
 use itertools::Itertools;
 use lazy_static::lazy_static;
-use regex::Regex;
 use resvg::render;
 use resvg::tiny_skia::{Pixmap, Transform};
 use resvg::usvg::{FitTo, Tree};
@@ -11,13 +11,14 @@ use serde_with::serde_as;
 use stardust_xr_fusion::types::color::{Rgb, ToHsv};
 use std::collections::HashMap;
 use std::ffi::OsString;
+use std::fs;
 use std::fs::create_dir_all;
 use std::hash::{DefaultHasher, Hash, Hasher};
-use std::io::{BufRead, BufReader, ErrorKind};
+use std::io::ErrorKind;
+use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::Mutex;
-use std::{env, fs};
 use walkdir::WalkDir;
 
 #[serde_as]
@@ -116,29 +117,33 @@ fn test_parse_desktop_file() {
 	let desktop_file = DesktopFile::parse(file).unwrap();
 
 	// Check the parsed values
-	assert_eq!(desktop_file.name, Some("Test".to_string()));
-	assert_eq!(desktop_file.command, Some("test".to_string()));
 	assert_eq!(
-		desktop_file.categories,
-		vec!["A".to_string(), "B".to_string(), "C".to_string()]
+		desktop_file.name::<&str>(&[]).as_ref().map(|v| v.as_ref()),
+		Some("Test")
 	);
-	assert_eq!(desktop_file.icon, Some("test.png".to_string()));
+	assert_eq!(desktop_file.exec(), Some("test"));
+	assert_eq!(desktop_file.categories(), Some(vec!["A", "B", "C"]));
+	assert_eq!(desktop_file.icon(), Some("test.png"));
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(into = "PathBuf", from = "PathBuf")]
-pub struct DesktopFile {
-	path: PathBuf,
-	pub name: Option<String>,
-	pub command: Option<String>,
-	pub categories: Vec<String>,
-	pub icon: Option<String>,
-	pub no_display: bool,
-	pub only_show_in: Vec<String>,
+pub struct DesktopFile(DesktopEntry);
+impl DerefMut for DesktopFile {
+	fn deref_mut(&mut self) -> &mut Self::Target {
+		&mut self.0
+	}
+}
+impl Deref for DesktopFile {
+	type Target = DesktopEntry;
+
+	fn deref(&self) -> &Self::Target {
+		&self.0
+	}
 }
 
 impl From<DesktopFile> for PathBuf {
 	fn from(df: DesktopFile) -> Self {
-		df.path
+		df.0.path
 	}
 }
 impl From<PathBuf> for DesktopFile {
@@ -148,91 +153,27 @@ impl From<PathBuf> for DesktopFile {
 }
 
 impl DesktopFile {
-	pub fn parse(path: PathBuf) -> Result<Self, String> {
-		// Open the file in read-only mode
-		let file = match fs::File::open(
-			env::current_dir()
-				.map_err(|e| e.to_string())?
-				.join(path.clone()),
-		) {
-			Ok(file) => file,
-			Err(err) => return Err(format!("Failed to open file: {err}")),
-		};
-
-		let reader = BufReader::new(file);
-
-		// Create temporary variables to hold the parsed values
-		let mut name = None;
-		let mut command = None;
-		let mut categories = Vec::new();
-		let mut icon = None;
-		let mut no_display = false;
-		let mut desktop_entry_found = false;
-		let mut only_show_in = Vec::new();
-
-		let re = Regex::new(r"^\[([^\]]*)\]$").unwrap();
-
-		// Loop through each line of the file
-		for line in reader.lines() {
-			let line = match line {
-				Ok(line) => line,
-				Err(err) => return Err(format!("Failed to read line: {err}")),
-			};
-
-			// Skip empty lines and lines that start with "#" (comments)
-			if line.is_empty() || line.starts_with('#') {
-				continue;
-			}
-
-			if let Some(captures) = re.captures(&line) {
-				let entry = captures.get(1).unwrap();
-				desktop_entry_found = entry.as_str().contains("Desktop Entry");
-			}
-
-			if !desktop_entry_found {
-				continue;
-			}
-			// Split the line into a key-value pair by looking for the first "=" character
-			let parts = line.split_once('=');
-			let (key, value) = match parts {
-				Some((key, value)) => (key, value),
-				None => continue,
-			};
-
-			// Parse the key-value pair based on the key
-			match key {
-				"Name" => name = Some(value.to_string()),
-				"Exec" => command = Some(value.to_string()),
-				"Categories" => {
-					categories = value
-						.split(';')
-						.map(|s| s.to_string())
-						.filter(|s| !s.is_empty())
-						.collect()
-				}
-				"Icon" => icon = Some(value.to_string()),
-				"NoDisplay" => no_display = value == "true",
-				"OnlyShowIn" => {
-					only_show_in = value
-						.split(';')
-						.map(|s| s.to_string())
-						.filter(|s| !s.is_empty())
-						.collect()
-				}
-				_ => (), // Ignore unknown keys
-			}
-		}
-
-		// Create and return a new DesktopFile instance with the parsed values
-		Ok(DesktopFile {
-			path,
-			name,
-			command,
-			categories,
-			icon,
-			no_display,
-			only_show_in,
-		})
+	pub fn parse(path: impl Into<PathBuf>) -> Result<Self, DecodeError> {
+		Ok(Self(DesktopEntry::from_path::<&str>(path, None)?))
+	}
+	pub fn parse_with_locales_filter<L: AsRef<str>>(
+		path: impl Into<PathBuf>,
+		locales_filter: &[L],
+	) -> Result<Self, DecodeError> {
+		Ok(Self(DesktopEntry::from_path(path, Some(locales_filter))?))
+	}
+	pub fn get_all() -> Vec<Self> {
+		let locales = freedesktop_desktop_entry::get_languages_from_env();
+		freedesktop_desktop_entry::desktop_entries(&locales)
+			.into_iter()
+			.map(Self)
+			.collect()
+	}
+	pub fn get_all_with_manual_locales(locales: &[String]) -> Vec<Self> {
+		freedesktop_desktop_entry::desktop_entries(locales)
+			.into_iter()
+			.map(Self)
+			.collect()
 	}
 }
 
@@ -241,7 +182,7 @@ const ICON_SIZES: [u16; 7] = [512, 256, 128, 64, 48, 32, 24];
 impl DesktopFile {
 	pub fn get_icon(&self, preferred_px_size: u16) -> Option<Icon> {
 		// Get the name of the icon from the DesktopFile struct
-		let icon_name = self.icon.as_ref()?;
+		let icon_name = self.icon()?;
 		let test_icon_path = self.path.join(Path::new(icon_name));
 		if test_icon_path.exists()
 			&& let Some(icon) = Icon::from_path(test_icon_path, preferred_px_size)
@@ -253,7 +194,7 @@ impl DesktopFile {
 			.lock()
 			.unwrap()
 			.map
-			.get(&(icon_name.clone(), preferred_px_size))
+			.get(&(icon_name.to_string(), preferred_px_size))
 			&& cache_icon_path.exists()
 			&& let Some(icon) = Icon::from_path(cache_icon_path.to_owned(), preferred_px_size)
 		{
@@ -371,15 +312,13 @@ impl Icon {
 #[test]
 fn test_get_icon_path() {
 	// Create an instance of the DesktopFile struct with some dummy data
-	let desktop_file = DesktopFile {
-		path: PathBuf::new(),
-		name: None,
-		command: None,
-		categories: vec![],
-		icon: Some("com.belmoussaoui.ashpd.demo".into()),
-		no_display: false,
-		only_show_in: vec![],
-	};
+	let entry = DesktopEntry::from_str::<&str>(
+		"/tmp/test",
+		"[Desktop Entry]\nName=Test\nIcon=com.belmoussaoui.ashpd.demo",
+		None,
+	)
+	.unwrap();
+	let desktop_file = DesktopFile(entry);
 
 	// Call the get_icon_path() function with a size argument and store the result
 	let icon = desktop_file.get_icon(32);
@@ -470,7 +409,7 @@ pub fn get_png_from_svg(svg_path: impl AsRef<Path>, size: u16) -> Result<PathBuf
 fn test_render_svg_to_png() {
 	use image::GenericImageView;
 	// Create temporary input and output paths
-	let svg_path = env::current_dir().unwrap().join("test_input.svg");
+	let svg_path = std::env::current_dir().unwrap().join("test_input.svg");
 
 	// Write some test SVG data to the input path
 	let test_svg_data = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\">

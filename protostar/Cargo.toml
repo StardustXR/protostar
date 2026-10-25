@@ -32,6 +32,7 @@ tween = "2.0.0"
 ustr = "0.10.0"
 walkdir = "2.3.3"
 tokio = { workspace = true }
+freedesktop-desktop-entry = "0.8.4"
 stardust-xr-fusion = { workspace = true }
 stardust-xr-molecules = { workspace = true }
 protostar-launcher.path = "../protostar-launcher"
