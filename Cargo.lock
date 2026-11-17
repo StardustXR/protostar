@@ -2146,7 +2146,6 @@ version = "0.1.0"
 dependencies = [
  "nix 0.27.1",
  "rand 0.10.1",
- "tracing",
  "which",
  "zbus",
  "zbus_systemd",
