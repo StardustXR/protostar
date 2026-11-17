@@ -12,7 +12,9 @@ pub async fn launch(
 	connection_env: impl IntoIterator<Item = (String, String)> + Send + Sync + 'static,
 ) {
 	#[cfg(feature = "systemd_launching")]
-	{
+	if std::env::var_os("PROTOSTAR_FORCE_DOUBLE_FORK").is_some_and(|v| v == "1") {
+		double_fork_launch(exec, connection_env).await;
+	} else {
 		let conn = zbus::connection::Connection::session().await.ok();
 		let systemd_proxy = if let Some(conn) = conn.as_ref() {
 			zbus_systemd::systemd1::ManagerProxy::new(conn).await.ok()
