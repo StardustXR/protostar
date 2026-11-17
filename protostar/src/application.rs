@@ -15,7 +15,7 @@ pub struct Application {
 }
 impl Application {
 	pub fn create(desktop_file: DesktopFile) -> Result<Self, NodeError> {
-		if desktop_file.no_display() {
+		if desktop_file.no_display() || desktop_file.hidden() {
 			return Err(ResourceLoadError::NotFound.into());
 		}
 

@@ -72,7 +72,7 @@ impl ClientState for HexagonLauncher {
 		// Load desktop files
 		self.apps = get_desktop_files()
 			.filter_map(|d| DesktopFile::parse(d).ok())
-			.filter(|d| !d.no_display())
+			.filter(|d| !d.no_display() && !d.hidden())
 			.filter(|d| {
 				d.only_show_in().is_none()
 					|| d.only_show_in()

@@ -9,8 +9,7 @@ use resvg::usvg::{FitTo, Tree};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use stardust_xr_fusion::types::color::{Rgb, ToHsv};
-use std::collections::HashMap;
-use std::ffi::OsString;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::fs::create_dir_all;
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -59,14 +58,14 @@ lazy_static! {
 }
 
 fn get_data_dirs() -> Vec<PathBuf> {
-	std::env::var("XDG_DATA_DIRS") // parse XDG_DATA_DIRS
-		.unwrap_or_default()
-		.split(':')
-		.filter_map(|dir| PathBuf::from_str(dir).ok())
-		.chain(dirs::home_dir().into_iter().map(|d| d.join(".local/share"))) // $HOME/.local/share
-		.chain(PathBuf::from_str("/usr/share")) // /usr/share
-		.chain(PathBuf::from_str("/usr/local/share")) // /usr/local/share
-		.filter(|dir| dir.exists() && dir.is_dir())
+	let dirs = std::env::var("XDG_DATA_DIRS")
+		.ok()
+		.filter(|v| !v.is_empty())
+		.unwrap_or_else(|| "/usr/local/share:/usr/share".to_string());
+	dirs::data_dir()
+		.into_iter()
+		.chain(dirs.split(':').filter(|d| !d.is_empty()).map(PathBuf::from))
+		.filter(|dir| dir.is_dir())
 		.unique()
 		.collect()
 }
@@ -75,24 +74,66 @@ fn get_app_dirs() -> Vec<PathBuf> {
 	get_data_dirs()
 		.into_iter()
 		.map(|dir| dir.join("applications"))
-		.filter(|dir| dir.exists() && dir.is_dir())
+		.filter(|dir| dir.is_dir())
 		.collect()
 }
 
+/// one path per desktop file id, earlier data dirs shadow later ones like the spec says
 pub fn get_desktop_files() -> impl Iterator<Item = PathBuf> {
-	// Get the list of directories to search
-	get_app_dirs()
+	shadowed_desktop_files(get_app_dirs())
+}
+
+fn shadowed_desktop_files(app_dirs: Vec<PathBuf>) -> impl Iterator<Item = PathBuf> {
+	let mut seen = HashSet::new();
+	app_dirs
 		.into_iter()
 		.flat_map(|dir| {
-			// Follow symlinks and recursively search directories
-			WalkDir::new(dir)
+			WalkDir::new(dir.clone())
 				.follow_links(true)
+				.sort_by_file_name()
 				.into_iter()
-				.filter_map(|entry| entry.ok())
-				.filter(|entry| entry.file_type().is_file())
-				.map(|entry| entry.path().to_path_buf())
+				.filter_map(|e| e.ok())
+				.filter(|e| e.file_type().is_file())
+				.filter(|e| e.path().extension() == Some("desktop".as_ref()))
+				.map(move |e| {
+					// the id swaps subdirectory slashes for dashes, so kde4/foo.desktop is kde4-foo.desktop
+					let id = e
+						.path()
+						.strip_prefix(&dir)
+						.unwrap()
+						.to_string_lossy()
+						.replace('/', "-");
+					(id, e.into_path())
+				})
 		})
-		.filter(|path| path.extension() == Some(&OsString::from_str("desktop").unwrap()))
+		.filter_map(move |(id, p)| seen.insert(id).then_some(p))
+}
+
+#[test]
+fn test_shadowed_desktop_files() {
+	let dir = tempdir::TempDir::new("test").unwrap();
+	let (high, low) = (dir.path().join("high"), dir.path().join("low"));
+	fs::create_dir_all(high.join("kde4")).unwrap();
+	fs::create_dir_all(&low).unwrap();
+	for p in [
+		high.join("a.desktop"),
+		high.join("kde4/b.desktop"),
+		low.join("a.desktop"),
+		low.join("kde4-b.desktop"),
+		low.join("c.desktop"),
+	] {
+		fs::write(p, "[Desktop Entry]\nName=Test").unwrap();
+	}
+
+	let files = shadowed_desktop_files(vec![high.clone(), low.clone()]).collect::<Vec<_>>();
+	assert_eq!(
+		files,
+		vec![
+			high.join("a.desktop"),
+			high.join("kde4/b.desktop"),
+			low.join("c.desktop"),
+		]
+	);
 }
 
 #[test]
@@ -163,16 +204,11 @@ impl DesktopFile {
 		Ok(Self(DesktopEntry::from_path(path, Some(locales_filter))?))
 	}
 	pub fn get_all() -> Vec<Self> {
-		let locales = freedesktop_desktop_entry::get_languages_from_env();
-		freedesktop_desktop_entry::desktop_entries(&locales)
-			.into_iter()
-			.map(Self)
-			.collect()
+		Self::get_all_with_manual_locales(&freedesktop_desktop_entry::get_languages_from_env())
 	}
 	pub fn get_all_with_manual_locales(locales: &[String]) -> Vec<Self> {
-		freedesktop_desktop_entry::desktop_entries(locales)
-			.into_iter()
-			.map(Self)
+		get_desktop_files()
+			.filter_map(|p| Self::parse_with_locales_filter(p, locales).ok())
 			.collect()
 	}
 }
